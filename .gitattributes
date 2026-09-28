@@ -1,0 +1,10 @@
+# Source files: LF in the repository and in the working tree
+* text=auto eol=lf
+# Windows batch files need CRLF
+*.bat text eol=crlf
+# Round-trip test fixtures must keep their exact bytes
+tests/fixtures/** -text
+# Binaries
+*.png binary
+*.ico binary
+*.icns binary
