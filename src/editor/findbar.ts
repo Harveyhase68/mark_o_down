@@ -1,6 +1,7 @@
-// Find & replace bar (Strg+F / Strg+H), floating over the top right of the editor.
+// Find & replace bar (Ctrl+F / Ctrl+H), floating over the top right of the editor.
 
 import type { EditorView } from 'prosemirror-view'
+import { kbd, t, type MessageKey } from '../i18n'
 import { EMPTY_QUERY, findNext, replaceAll, replaceCurrent, revealCurrent, searchState, setQuery, type SearchQuery } from './search'
 
 export interface FindBar {
@@ -11,12 +12,14 @@ export interface FindBar {
   /** Refresh the match counter after document changes. */
   update(): void
   isOpen(): boolean
+  /** Texts in the current language (after a language change). */
+  relabel(): void
 }
 
-const OPTIONS: { key: keyof Omit<SearchQuery, 'text'>; label: string; title: string }[] = [
-  { key: 'caseSensitive', label: 'Aa', title: 'Groß-/Kleinschreibung beachten (Alt+C)' },
-  { key: 'wholeWord', label: 'ab|', title: 'Nur ganzes Wort (Alt+W)' },
-  { key: 'regex', label: '.*', title: 'Regulärer Ausdruck (Alt+R) – im Ersetzen-Feld $1, $2 … für Gruppen' },
+const OPTIONS: { key: keyof Omit<SearchQuery, 'text'>; label: string; title: MessageKey; shortcut: string }[] = [
+  { key: 'caseSensitive', label: 'Aa', title: 'find.case', shortcut: 'Alt+C' },
+  { key: 'wholeWord', label: 'ab|', title: 'find.word', shortcut: 'Alt+W' },
+  { key: 'regex', label: '.*', title: 'find.regex', shortcut: 'Alt+R' },
 ]
 
 export function createFindBar(container: HTMLElement, view: EditorView): FindBar {
@@ -26,18 +29,18 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
   bar.setAttribute('role', 'search')
   bar.innerHTML = `
     <div class="fb-row">
-      <input class="fb-find" type="text" placeholder="Suchen" aria-label="Suchen" spellcheck="false">
+      <input class="fb-find" type="text" spellcheck="false">
       <span class="fb-count" aria-live="polite"></span>
-      <button type="button" class="fb-prev" title="Vorheriger Treffer (Umschalt+Enter / Umschalt+F3)" aria-label="Vorheriger Treffer">↑</button>
-      <button type="button" class="fb-next" title="Nächster Treffer (Enter / F3)" aria-label="Nächster Treffer">↓</button>
+      <button type="button" class="fb-prev">↑</button>
+      <button type="button" class="fb-next">↓</button>
       <span class="fb-options"></span>
-      <button type="button" class="fb-toggle" title="Ersetzen ein-/ausblenden (Strg+H)" aria-label="Ersetzen ein-/ausblenden">⇄</button>
-      <button type="button" class="fb-close" title="Schließen (Esc)" aria-label="Suche schließen">✕</button>
+      <button type="button" class="fb-toggle">⇄</button>
+      <button type="button" class="fb-close">✕</button>
     </div>
     <div class="fb-row fb-replace-row">
-      <input class="fb-replace" type="text" placeholder="Ersetzen durch" aria-label="Ersetzen durch" spellcheck="false">
-      <button type="button" class="fb-one" title="Aktuellen Treffer ersetzen (Enter)">Ersetzen</button>
-      <button type="button" class="fb-all" title="Alle Treffer ersetzen (Strg+Alt+Enter)">Alle ersetzen</button>
+      <input class="fb-replace" type="text" spellcheck="false">
+      <button type="button" class="fb-one"></button>
+      <button type="button" class="fb-all"></button>
     </div>`
   container.append(bar)
 
@@ -52,8 +55,6 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
     b.type = 'button'
     b.className = 'fb-opt'
     b.textContent = o.label
-    b.title = o.title
-    b.setAttribute('aria-label', o.title)
     b.setAttribute('aria-pressed', 'false')
     b.onclick = () => toggle(o.key)
     $('.fb-options').append(b)
@@ -78,7 +79,13 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
     const s = searchState(view.state)
     bar.classList.toggle('fb-error', !!s.error)
     bar.classList.toggle('fb-none', !!query.text && !s.error && !s.matches.length)
-    count.textContent = s.error ? 'Ungültiger Ausdruck' : !query.text ? '' : s.matches.length ? `${s.current + 1} von ${s.matches.length}` : 'Keine Treffer'
+    count.textContent = s.error
+      ? t('find.invalid')
+      : !query.text
+        ? ''
+        : s.matches.length
+          ? t('find.count', { current: s.current + 1, total: s.matches.length })
+          : t('find.none')
     count.title = s.error ?? ''
     const none = !s.matches.length
     for (const sel of ['.fb-prev', '.fb-next', '.fb-one', '.fb-all']) $<HTMLButtonElement>(sel).disabled = none
@@ -143,7 +150,7 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
   function doReplaceAll() {
     const n = replaceAll(view, replaceIn.value)
     update()
-    if (n) count.textContent = `${n} ersetzt`
+    if (n) count.textContent = t('find.replaced', { n })
   }
 
   $('.fb-prev').onclick = () => next(-1)
@@ -161,5 +168,32 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
   // buttons must not steal the editor selection / input focus flow
   for (const b of bar.querySelectorAll('button')) b.addEventListener('mousedown', (e) => e.preventDefault())
 
-  return { open, close, next, update, isOpen: () => !bar.hidden }
+  /** Tooltips and labels in the current language. */
+  function relabel() {
+    const set = (sel: string, text: string, tooltip = text) => {
+      const e = $(sel)
+      e.title = tooltip
+      e.setAttribute('aria-label', text)
+    }
+    findIn.placeholder = t('find.label')
+    findIn.setAttribute('aria-label', t('find.label'))
+    replaceIn.placeholder = t('find.replaceLabel')
+    replaceIn.setAttribute('aria-label', t('find.replaceLabel'))
+    set('.fb-prev', t('find.prev'), `${t('find.prev')} (${kbd('Shift+Enter')} / ${kbd('Shift')}+F3)`)
+    set('.fb-next', t('find.next'), `${t('find.next')} (${kbd('Enter')} / F3)`)
+    set('.fb-toggle', t('find.toggleReplace'), `${t('find.toggleReplace')} (${kbd('Ctrl+H')})`)
+    set('.fb-close', t('find.close'), `${t('common.close')} (${kbd('Esc')})`)
+    $('.fb-one').textContent = t('find.replaceOne')
+    $('.fb-one').title = `${t('find.replaceOneTip')} (${kbd('Enter')})`
+    $('.fb-all').textContent = t('find.replaceAll')
+    $('.fb-all').title = `${t('find.replaceAllTip')} (${kbd('Ctrl+Alt+Enter')})`
+    for (const o of optionButtons) {
+      o.b.title = `${t(o.title)} (${kbd(o.shortcut)})`
+      o.b.setAttribute('aria-label', t(o.title))
+    }
+    update()
+  }
+  relabel()
+
+  return { open, close, next, update, isOpen: () => !bar.hidden, relabel }
 }

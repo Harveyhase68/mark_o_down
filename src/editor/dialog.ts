@@ -1,6 +1,7 @@
 // Tiny modal form (link / image / raw Markdown editing).
 
 import { openModal } from './modal'
+import { t } from '../i18n'
 
 export interface Field {
   name: string
@@ -31,8 +32,8 @@ export function openDialog(opts: {
   extra?: (form: HTMLFormElement, set: (name: string, value: string) => void) => void
 }): Promise<DialogResult | null> {
   const buttons = opts.buttons ?? [
-    { label: 'Abbrechen', value: 'cancel' },
-    { label: 'OK', value: 'ok', primary: true },
+    { label: t('common.cancel'), value: 'cancel' },
+    { label: t('common.ok'), value: 'ok', primary: true },
   ]
   return new Promise((resolve) => {
     const form = document.createElement('form')
@@ -175,12 +176,12 @@ export type SaveChoice = 'save' | 'discard' | 'cancel'
 /** "Save changes?" with Speichern / Nicht speichern / Abbrechen. */
 export async function askSaveChanges(name: string): Promise<SaveChoice> {
   const res = await openDialog({
-    title: `Änderungen an „${name}“ speichern?`,
+    title: t('save.question', { name }),
     fields: [],
     buttons: [
-      { label: 'Nicht speichern', value: 'discard', danger: true },
-      { label: 'Abbrechen', value: 'cancel' },
-      { label: 'Speichern', value: 'save', primary: true },
+      { label: t('common.dontSave'), value: 'discard', danger: true },
+      { label: t('common.cancel'), value: 'cancel' },
+      { label: t('common.save'), value: 'save', primary: true },
     ],
   })
   return (res?.action as SaveChoice | undefined) ?? 'cancel'

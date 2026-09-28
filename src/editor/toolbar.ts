@@ -4,6 +4,7 @@ import { setBlockType, toggleMark } from 'prosemirror-commands'
 import { undo, redo, undoDepth, redoDepth } from 'prosemirror-history'
 import { schema } from '../md/schema'
 import { openMenu, type MenuItem } from './dialog'
+import { LANGUAGES, getLang, kbd, setLang, t, type MessageKey } from '../i18n'
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, isInTable } from 'prosemirror-tables'
 import {
   alignColumn,
@@ -103,7 +104,9 @@ export interface ToolbarActions {
   sourceVisible: () => boolean
 }
 
+/** Builds (or rebuilds, e.g. after a language change) the toolbar into `el`. */
 export function createToolbar(el: HTMLElement, view: EditorView, actions: ToolbarActions) {
+  el.replaceChildren()
   const inList = (type: typeof N.bullet_list) => (s: EditorState) => currentList(s)?.node.type === type
   const inNode = (type: typeof N.blockquote) => (s: EditorState) => {
     const { $from } = s.selection
@@ -116,52 +119,55 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
     return false
   }
 
+  /** "Fett (Strg+B)" – name in the current language plus the localised shortcut. */
+  const tip = (key: MessageKey, shortcut?: string) => (shortcut ? `${t(key)} (${kbd(shortcut)})` : t(key))
+
   const groups: (Group | 'heading')[] = ([
     [
-      { id: 'open', title: 'Öffnen (Strg+O), zuletzt geöffnete Dateien', menu: () => actions.openMenu() },
+      { id: 'open', title: tip('tb.open', 'Ctrl+O'), menu: () => actions.openMenu() },
       {
         id: 'save',
-        title: 'Speichern, Speichern unter…, HTML-Export',
+        title: t('tb.save'),
         menu: () => [
-          { label: 'Speichern', shortcut: 'Strg+S', run: actions.save },
-          { label: 'Speichern unter…', shortcut: 'Strg+Umschalt+S', run: actions.saveAs },
+          { label: t('common.save'), shortcut: kbd('Ctrl+S'), run: actions.save },
+          { label: t('common.saveAs'), shortcut: kbd('Ctrl+Shift+S'), run: actions.saveAs },
           'separator',
-          { label: 'Als HTML exportieren…', shortcut: 'Strg+Umschalt+E', run: actions.exportHtml },
-          { label: 'HTML in die Zwischenablage kopieren', run: actions.copyHtml },
+          { label: t('menu.exportHtml'), shortcut: kbd('Ctrl+Shift+E'), run: actions.exportHtml },
+          { label: t('menu.copyHtml'), run: actions.copyHtml },
         ],
       },
-      { id: 'close', title: 'Dokument schließen (Strg+W)', action: () => actions.close() },
-      { id: 'print', title: 'Drucken (Strg+P)', action: () => actions.print() },
+      { id: 'close', title: tip('tb.close', 'Ctrl+W'), action: () => actions.close() },
+      { id: 'print', title: tip('tb.print', 'Ctrl+P'), action: () => actions.print() },
     ],
     [
-      { id: 'undo', title: 'Rückgängig (Strg+Z)', cmd: undo, enabled: (s) => undoDepth(s) > 0 },
-      { id: 'redo', title: 'Wiederholen (Strg+Y)', cmd: redo, enabled: (s) => redoDepth(s) > 0 },
+      { id: 'undo', title: tip('tb.undo', 'Ctrl+Z'), cmd: undo, enabled: (s) => undoDepth(s) > 0 },
+      { id: 'redo', title: tip('tb.redo', 'Ctrl+Y'), cmd: redo, enabled: (s) => redoDepth(s) > 0 },
     ],
     'heading',
     [
-      { id: 'bold', title: 'Fett (Strg+B)', cmd: toggleMark(K.strong), active: (s) => markActive(s, K.strong) },
-      { id: 'italic', title: 'Kursiv (Strg+I)', cmd: toggleMark(K.em), active: (s) => markActive(s, K.em) },
-      { id: 'strike', title: 'Durchgestrichen (Strg+Umschalt+X)', cmd: toggleMark(K.strike), active: (s) => markActive(s, K.strike) },
-      { id: 'code', title: 'Code (Strg+E)', cmd: toggleMark(K.code), active: (s) => markActive(s, K.code) },
+      { id: 'bold', title: tip('tb.bold', 'Ctrl+B'), cmd: toggleMark(K.strong), active: (s) => markActive(s, K.strong) },
+      { id: 'italic', title: tip('tb.italic', 'Ctrl+I'), cmd: toggleMark(K.em), active: (s) => markActive(s, K.em) },
+      { id: 'strike', title: tip('tb.strike', 'Ctrl+Shift+X'), cmd: toggleMark(K.strike), active: (s) => markActive(s, K.strike) },
+      { id: 'code', title: tip('tb.code', 'Ctrl+E'), cmd: toggleMark(K.code), active: (s) => markActive(s, K.code) },
     ],
     [
-      { id: 'bullet', title: 'Aufzählung (Strg+Umschalt+8)', cmd: toggleList(N.bullet_list), active: inList(N.bullet_list) },
-      { id: 'ordered', title: 'Nummerierung (Strg+Umschalt+7)', cmd: toggleList(N.ordered_list), active: inList(N.ordered_list) },
-      { id: 'task', title: 'Aufgabe [ ] (in Listen)', cmd: toggleTask, active: inTask },
-      { id: 'quote', title: 'Zitat (Strg+Umschalt+9)', cmd: toggleBlockquote(), active: inNode(N.blockquote) },
-      { id: 'center', title: 'Zentrieren (<div align="center">)', cmd: toggleCenter, active: inCenter },
+      { id: 'bullet', title: tip('tb.bullet', 'Ctrl+Shift+8'), cmd: toggleList(N.bullet_list), active: inList(N.bullet_list) },
+      { id: 'ordered', title: tip('tb.ordered', 'Ctrl+Shift+7'), cmd: toggleList(N.ordered_list), active: inList(N.ordered_list) },
+      { id: 'task', title: tip('tb.task'), cmd: toggleTask, active: inTask },
+      { id: 'quote', title: tip('tb.quote', 'Ctrl+Shift+9'), cmd: toggleBlockquote(), active: inNode(N.blockquote) },
+      { id: 'center', title: tip('tb.center'), cmd: toggleCenter, active: inCenter },
     ],
     [
-      { id: 'link', title: 'Link (Strg+K)', action: (v) => actions.link(v), active: (s) => markActive(s, K.link) },
-      { id: 'image', title: 'Bild, Badge oder Icon', action: (v) => actions.image(v) },
-      { id: 'emoji', title: 'Emoji & Zeichen (Strg+.)', action: (v) => actions.emoji(v) },
-      { id: 'codeblock', title: 'Codeblock', cmd: toggleCodeBlock },
-      { id: 'hr', title: 'Trennlinie', cmd: insertRule },
-      { id: 'table', title: 'Tabelle einfügen', cmd: insertTable(), enabled: (s) => !isInTable(s) },
+      { id: 'link', title: tip('tb.link', 'Ctrl+K'), action: (v) => actions.link(v), active: (s) => markActive(s, K.link) },
+      { id: 'image', title: tip('tb.image'), action: (v) => actions.image(v) },
+      { id: 'emoji', title: tip('tb.emoji', 'Ctrl+.'), action: (v) => actions.emoji(v) },
+      { id: 'codeblock', title: tip('tb.codeblock'), cmd: toggleCodeBlock },
+      { id: 'hr', title: tip('tb.hr'), cmd: insertRule },
+      { id: 'table', title: tip('tb.table'), cmd: insertTable(), enabled: (s) => !isInTable(s) },
     ],
     [
-      { id: 'find', title: 'Suchen & Ersetzen (Strg+F / Strg+H)', action: () => actions.find() },
-      { id: 'source', title: 'Markdown-Quelltext anzeigen (Strg+Umschalt+M)', action: () => actions.toggleSource(), active: () => actions.sourceVisible() },
+      { id: 'find', title: `${t('tb.find')} (${kbd('Ctrl+F')} / ${kbd('Ctrl+H')})`, action: () => actions.find() },
+      { id: 'source', title: tip('tb.source', 'Ctrl+Shift+M'), action: () => actions.toggleSource(), active: () => actions.sourceVisible() },
     ],
   ] as (Button[] | 'heading')[]).map((g) => (g === 'heading' ? g : { buttons: g }))
 
@@ -169,16 +175,16 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
   groups.push({
     visible: isInTable,
     buttons: [
-      { id: 'rowBefore', title: 'Zeile oberhalb einfügen', cmd: addRowBefore },
-      { id: 'rowAfter', title: 'Zeile unterhalb einfügen', cmd: addRowAfter },
-      { id: 'colBefore', title: 'Spalte links einfügen', cmd: addColumnBefore },
-      { id: 'colAfter', title: 'Spalte rechts einfügen', cmd: addColumnAfter },
-      { id: 'delRow', title: 'Zeile löschen', cmd: deleteRow },
-      { id: 'delCol', title: 'Spalte löschen', cmd: deleteColumn },
-      { id: 'alignLeft', title: 'Spalte linksbündig', cmd: alignColumn('left'), active: (s) => columnAlign(s) === 'left' },
-      { id: 'alignCenter', title: 'Spalte zentriert', cmd: alignColumn('center'), active: (s) => columnAlign(s) === 'center' },
-      { id: 'alignRight', title: 'Spalte rechtsbündig', cmd: alignColumn('right'), active: (s) => columnAlign(s) === 'right' },
-      { id: 'delTable', title: 'Tabelle löschen', cmd: deleteTable },
+      { id: 'rowBefore', title: tip('tb.rowBefore'), cmd: addRowBefore },
+      { id: 'rowAfter', title: tip('tb.rowAfter'), cmd: addRowAfter },
+      { id: 'colBefore', title: tip('tb.colBefore'), cmd: addColumnBefore },
+      { id: 'colAfter', title: tip('tb.colAfter'), cmd: addColumnAfter },
+      { id: 'delRow', title: tip('tb.delRow'), cmd: deleteRow },
+      { id: 'delCol', title: tip('tb.delCol'), cmd: deleteColumn },
+      { id: 'alignLeft', title: tip('tb.alignLeft'), cmd: alignColumn('left'), active: (s) => columnAlign(s) === 'left' },
+      { id: 'alignCenter', title: tip('tb.alignCenter'), cmd: alignColumn('center'), active: (s) => columnAlign(s) === 'center' },
+      { id: 'alignRight', title: tip('tb.alignRight'), cmd: alignColumn('right'), active: (s) => columnAlign(s) === 'right' },
+      { id: 'delTable', title: tip('tb.delTable'), cmd: deleteTable },
     ],
   })
 
@@ -186,14 +192,25 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
   const groupEls: { el: HTMLElement; group: Group }[] = []
   let select!: HTMLSelectElement
 
-  // Help, always at the far right
+  // Help (with the language switch), always at the far right
   groups.push({
     right: true,
     buttons: [
       {
         id: 'help',
-        title: 'Hilfe',
-        menu: () => [{ label: 'Hilfe…', shortcut: 'F1', run: actions.help }, 'separator', { label: 'Über Mark O Down', run: actions.about }],
+        title: t('tb.help'),
+        menu: () => [
+          { label: t('menu.help'), shortcut: 'F1', run: actions.help },
+          'separator',
+          { label: `${t('menu.language')} / Language`, disabled: true, run: () => {} },
+          ...LANGUAGES.map((l) => ({
+            label: `${l.code === getLang() ? '✓' : ' '}  ${l.name}`,
+            shortcut: l.code.toUpperCase(),
+            run: () => setLang(l.code),
+          })),
+          'separator',
+          { label: t('menu.about'), run: actions.about },
+        ],
       },
     ],
   })
@@ -203,10 +220,10 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
     g.className = group !== 'heading' && group.right ? 'tb-group tb-right' : 'tb-group'
     if (group === 'heading') {
       select = document.createElement('select')
-      select.title = 'Absatzformat (Strg+Alt+0…3)'
+      select.title = `${t('tb.blockFormat')} (${kbd('Ctrl+Alt')}+0…3)`
       select.innerHTML =
-        '<option value="0">Absatz</option>' +
-        [1, 2, 3, 4, 5, 6].map((l) => `<option value="${l}">Überschrift ${l}</option>`).join('') +
+        `<option value="0">${t('tb.paragraph')}</option>` +
+        [1, 2, 3, 4, 5, 6].map((l) => `<option value="${l}">${t('tb.heading', { n: l })}</option>`).join('') +
         '<option value="-1" disabled hidden>—</option>'
       select.onchange = () => {
         setHeading(+select.value)(view.state, view.dispatch)

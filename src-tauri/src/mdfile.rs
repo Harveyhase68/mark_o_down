@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 
 const BOM: &[u8] = b"\xEF\xBB\xBF";
 
+/// Error code for files that aren't UTF-8 (followed by `:<byte offset>`).
+pub const INVALID_UTF8: &str = "INVALID_UTF8";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Eol {
@@ -34,12 +37,8 @@ pub fn decode(bytes: &[u8]) -> Result<MdFile, String> {
         Some(rest) => (true, rest),
         None => (false, bytes),
     };
-    let raw = std::str::from_utf8(body).map_err(|e| {
-        format!(
-            "kein gültiges UTF-8 (Byte {}); die Datei wird nicht geöffnet, um sie beim Speichern nicht zu beschädigen",
-            e.valid_up_to() + if bom { BOM.len() } else { 0 }
-        )
-    })?;
+    // a code, not a sentence: the frontend shows it in the user's language
+    let raw = std::str::from_utf8(body).map_err(|e| format!("{INVALID_UTF8}:{}", e.valid_up_to() + if bom { BOM.len() } else { 0 }))?;
 
     let crlf = raw.matches("\r\n").count();
     let lf = raw.matches('\n').count() - crlf;

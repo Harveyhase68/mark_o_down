@@ -2,6 +2,7 @@
 
 import * as host from '../platform'
 import { openModal } from './modal'
+import { t } from '../i18n'
 
 declare const __APP_VERSION__: string
 
@@ -19,15 +20,15 @@ export function showAbout(): Promise<void> {
         <img class="about-logo" src="/icon.svg" alt="" aria-hidden="true">
         <div>
           <h2>Mark O Down</h2>
-          <div class="about-version">Version ${__APP_VERSION__} · WYSIWYG-Markdown-Editor</div>
+          <div class="about-version">${t('about.version')} ${__APP_VERSION__} · ${t('about.subtitle')}</div>
         </div>
       </div>
       <dl>
         <dt>Copyright</dt><dd>© 2026 Alexander Predl</dd>
-        <dt>Website</dt><dd><a href="${WEBSITE}">predl.cc</a></dd>
-        <dt>Lizenz</dt><dd><a href="${LICENSE_URL}">MIT License</a></dd>
+        <dt>${t('about.website')}</dt><dd><a href="${WEBSITE}">predl.cc</a></dd>
+        <dt>${t('about.license')}</dt><dd><a href="${LICENSE_URL}">MIT License</a></dd>
       </dl>
-      <h3>Impressum</h3>
+      <h3>${t('about.imprint')}</h3>
       <address>
         Alexander Predl<br>
         Breite Gasse 276<br>
@@ -35,7 +36,7 @@ export function showAbout(): Promise<void> {
         Austria<br>
         <a href="${IMPRINT_URL}">predl.cc/impressum</a>
       </address>
-      <div class="buttons"><button type="button" class="primary" autofocus>Schließen</button></div>`
+      <div class="buttons"><button type="button" class="primary" autofocus>${t('common.close')}</button></div>`
 
     const close = () => {
       modal.close()
@@ -49,6 +50,6 @@ export function showAbout(): Promise<void> {
       void host.openExternal(a.href)
     })
     box.querySelector('button')!.onclick = close
-    const modal = openModal(box, { label: 'Über Mark O Down', onCancel: close })
+    const modal = openModal(box, { label: t('menu.about'), onCancel: close })
   })
 }

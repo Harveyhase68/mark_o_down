@@ -3,6 +3,7 @@
 // toolbar and status bar keep their size. The level is remembered.
 
 import { store } from './dom'
+import { kbd, t } from '../i18n'
 
 export const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 const KEY = 'mod-zoom'
@@ -19,15 +20,17 @@ export interface Zoom {
   level(): number
   set(level: number): void
   step(dir: 1 | -1): void
+  /** Tooltips in the current language. */
+  relabel(): void
 }
 
 export function setupZoom(target: HTMLElement, scroller: HTMLElement, control: HTMLElement): Zoom {
   let level = clamp(store.get<number>(KEY, 1))
 
   control.innerHTML = `
-    <button type="button" class="zoom-out" title="Verkleinern (Strg+Minus / Strg+Mausrad)" aria-label="Verkleinern">−</button>
-    <button type="button" class="zoom-level" title="Auf 100 % zurücksetzen (Strg+0)"></button>
-    <button type="button" class="zoom-in" title="Vergrößern (Strg+Plus / Strg+Mausrad)" aria-label="Vergrößern">+</button>`
+    <button type="button" class="zoom-out">−</button>
+    <button type="button" class="zoom-level"></button>
+    <button type="button" class="zoom-in">+</button>`
   const label = control.querySelector<HTMLButtonElement>('.zoom-level')!
   control.querySelector<HTMLButtonElement>('.zoom-out')!.onclick = () => zoom.step(-1)
   control.querySelector<HTMLButtonElement>('.zoom-in')!.onclick = () => zoom.step(1)
@@ -46,6 +49,17 @@ export function setupZoom(target: HTMLElement, scroller: HTMLElement, control: H
   }
 
   const zoom: Zoom = {
+    relabel() {
+      const wheel = `${kbd('Ctrl')}+${t('key.wheel')}`
+      const out = control.querySelector<HTMLButtonElement>('.zoom-out')!
+      const into = control.querySelector<HTMLButtonElement>('.zoom-in')!
+      out.title = `${t('zoom.out')} (${kbd('Ctrl')}+Minus / ${wheel})`
+      out.setAttribute('aria-label', t('zoom.out'))
+      into.title = `${t('zoom.in')} (${kbd('Ctrl')}+Plus / ${wheel})`
+      into.setAttribute('aria-label', t('zoom.in'))
+      label.title = `${t('zoom.reset')} (${kbd('Ctrl')}+0)`
+      control.setAttribute('aria-label', t('zoom.label'))
+    },
     level: () => level,
     set(l) {
       level = clamp(l)
@@ -95,6 +109,7 @@ export function setupZoom(target: HTMLElement, scroller: HTMLElement, control: H
     true,
   )
 
+  zoom.relabel()
   apply()
   return zoom
 }

@@ -64,7 +64,7 @@ pub fn recovery_orphans(app: tauri::AppHandle) -> Result<Vec<Orphan>, String> {
 pub fn recovery_remove(app: tauri::AppHandle, id: String) -> Result<(), String> {
     let valid = id.strip_suffix(".json").is_some_and(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()));
     if !valid {
-        return Err(format!("ungültige Wiederherstellungs-ID: {id}"));
+        return Err(format!("invalid recovery id: {id}"));
     }
     match std::fs::remove_file(recovery_dir(&app)?.join(id)) {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),

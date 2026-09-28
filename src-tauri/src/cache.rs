@@ -12,7 +12,7 @@ fn config_file(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
         && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
         && !name.starts_with('.');
     if !valid {
-        return Err(format!("ungültiger Konfigurationsname: {name}"));
+        return Err(format!("invalid config file name: {name}"));
     }
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     Ok(dir.join(name))
@@ -64,7 +64,7 @@ fn is_fresh(path: &PathBuf, max_age: Duration) -> bool {
 #[tauri::command]
 pub async fn fetch_cached(app: tauri::AppHandle, url: String, max_age_hours: f64, force: bool) -> Result<String, String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err(format!("nur http(s)-Adressen erlaubt: {url}"));
+        return Err(format!("only http(s) URLs are allowed: {url}"));
     }
     let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("remote");
     let path = dir.join(cache_key(&url));

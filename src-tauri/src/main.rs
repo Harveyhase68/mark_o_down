@@ -35,7 +35,7 @@ fn allow_assets(app: &tauri::AppHandle, dir: &Path) {
 fn read_markdown(app: tauri::AppHandle, path: String) -> Result<OpenedFile, String> {
     let abs = paths::absolute(Path::new(&path));
     let bytes = std::fs::read(&abs).map_err(|e| format!("{}: {e}", abs.display()))?;
-    let file = mdfile::decode(&bytes).map_err(|e| format!("{}: {e}", abs.display()))?;
+    let file = mdfile::decode(&bytes)?; // INVALID_UTF8:<byte> – shown translated by the frontend
     let dir = abs.parent().map(Path::to_path_buf).unwrap_or_default();
     let root = paths::content_root(&dir);
     // images next to the document and anywhere in its repository
@@ -90,7 +90,7 @@ fn write_text(path: String, text: String) -> Result<(), String> {
 fn save_pasted_image(app: tauri::AppHandle, dir: String, subdir: String, stem: String, ext: String, data: String) -> Result<String, String> {
     use base64::Engine as _;
     if ![&subdir, &stem, &ext].iter().all(|s| paths::is_plain_name(s)) {
-        return Err("ungültiger Dateiname".into());
+        return Err("invalid file name".into());
     }
     let bytes = base64::engine::general_purpose::STANDARD.decode(data.as_bytes()).map_err(|e| e.to_string())?;
     let folder = PathBuf::from(&dir).join(&subdir);

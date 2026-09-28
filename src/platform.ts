@@ -2,6 +2,7 @@
 // (`npm run dev` without Tauri) a minimal fallback keeps the editor usable.
 
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { t } from './i18n'
 
 export type Eol = 'lf' | 'crlf'
 
@@ -37,7 +38,13 @@ export const isHtmlFile = (p: string) => HTML_EXT.includes(extension(p))
 const IMG_FILTER = [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'bmp', 'ico'] }]
 
 export async function readFile(path: string): Promise<MdFile> {
-  return invoke<MdFile>('read_markdown', { path })
+  try {
+    return await invoke<MdFile>('read_markdown', { path })
+  } catch (e) {
+    // Rust sends a code for non-UTF-8 files; show it in the user's language
+    const m = /^INVALID_UTF8:(\d+)$/.exec(String(e))
+    throw m ? new Error(t('err.invalidUtf8', { byte: m[1] })) : e
+  }
 }
 
 /** Image files below `dir`, as `/`-separated relative paths. */

@@ -15,6 +15,7 @@ import { buildInputRules } from './inputrules'
 import { searchPlugin } from './search'
 import { classifyPaste, pasteUrl } from './paste'
 import { openDialog } from './dialog'
+import { t } from '../i18n'
 import { openPicker } from '../badges/picker'
 import { openEmojiPicker } from '../emoji/picker'
 import {
@@ -52,16 +53,16 @@ export interface EditorHooks {
 export async function editLink(view: EditorView) {
   const info = linkAtSelection(view.state)
   const res = await openDialog({
-    title: info.existing ? 'Link bearbeiten' : 'Link einfügen',
+    title: info.existing ? t('link.edit') : t('link.insert'),
     fields: [
-      { name: 'text', label: 'Text', value: info.text },
-      { name: 'href', label: 'URL', value: info.href, placeholder: 'https://…' },
-      { name: 'title', label: 'Titel (optional)', value: info.title ?? '' },
+      { name: 'text', label: t('link.text'), value: info.text },
+      { name: 'href', label: t('link.url'), value: info.href, placeholder: 'https://…' },
+      { name: 'title', label: t('link.title'), value: info.title ?? '' },
     ],
     buttons: [
-      ...(info.existing ? [{ label: 'Link entfernen', value: 'remove', danger: true }] : []),
-      { label: 'Abbrechen', value: 'cancel' },
-      { label: 'OK', value: 'ok', primary: true },
+      ...(info.existing ? [{ label: t('link.remove'), value: 'remove', danger: true }] : []),
+      { label: t('common.cancel'), value: 'cancel' },
+      { label: t('common.ok'), value: 'ok', primary: true },
     ],
   })
   view.focus()
@@ -111,7 +112,7 @@ export async function insertEmoji(view: EditorView) {
 async function editRawInline(view: EditorView, pos: number) {
   const node = view.state.doc.nodeAt(pos)
   if (!node) return
-  const res = await openDialog({ title: 'Markdown/HTML bearbeiten', fields: [{ name: 'value', label: 'Quelltext', value: node.attrs.value, multiline: true }] })
+  const res = await openDialog({ title: t('raw.title'), fields: [{ name: 'value', label: t('raw.source'), value: node.attrs.value, multiline: true }] })
   view.focus()
   if (!res) return
   const tr = view.state.tr
@@ -154,7 +155,7 @@ const rawInlineView: NodeViewConstructor = (node, view, getPos) => {
   const span = document.createElement('span')
   span.className = 'raw-inline'
   span.textContent = node.attrs.value || '∅'
-  span.title = 'Markdown/HTML – Doppelklick zum Bearbeiten'
+  span.title = t('raw.tooltip')
   span.ondblclick = () => editRawInline(view, getPos()!)
   return { dom: span }
 }
