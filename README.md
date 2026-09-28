@@ -13,11 +13,26 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
+**Version 0.2.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-020) · [Changelog](#changelog)
+
 </div>
 
 Mark O Down is not a Markdown editor with a preview pane – the document *is* the preview. You edit
 headings, bold text, lists, links, images, tables and badges directly, and the file on disk stays
 clean Markdown.
+
+## What's new in 0.2.0
+
+- 🔍 **Find & replace** – `Ctrl+F` / `Ctrl+H`, all matches highlighted, match case, whole word,
+  regular expressions with `$1` groups, *Replace all* as a single undo step.
+- 🛡️ **No more lost work** – changes made by other programs (git pull, another editor, cloud sync)
+  are detected and never overwritten without asking; after a crash or power loss your unsaved
+  changes are offered for recovery.
+- 🌐 **Open HTML files** – converted to Markdown; a dialog first lists exactly what Markdown can't keep.
+- 🕘 **Recently opened files** in the Open menu.
+- 🔎 **Zoom** – `Ctrl+Mouse wheel`, `Ctrl+Plus` / `Ctrl+Minus` / `Ctrl+0`, 50–300 %.
+- ⌨️ Dialogs keep the keyboard focus (Tab no longer jumps into the document behind them), plus
+  security, performance and bug fixes – see the [changelog](#changelog).
 
 ## Features
 
@@ -47,9 +62,11 @@ clean Markdown.
 
 ## Download
 
-Get the installer (`Mark O Down_x.y.z_x64-setup.exe`) from the
-[Releases](https://github.com/Harveyhase68/mark_o_down/releases) page. It needs Microsoft Edge
-WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
+Get the installer **`Mark.O.Down_0.2.0_x64-setup.exe`** from the
+[latest release](https://github.com/Harveyhase68/mark_o_down/releases/latest) (Windows 10/11, 64-bit).
+It needs Microsoft Edge WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
+
+> **"Windows protected your PC"?** The installer is not code-signed yet. Click **More info → Run anyway**.
 
 > **Drag & drop not working?** Windows blocks drag & drop from Explorer into programs running
 > *as administrator*. Start Mark O Down normally – the status bar warns you if it runs elevated.
@@ -91,14 +108,16 @@ npm run unicode        # refresh the emoji/symbol data from unicode.org and CLDR
 Releases are built by GitHub Actions ([`release.yml`](.github/workflows/release.yml)) when a version tag is pushed:
 
 ```bash
-npm run release:version 0.2.0   # sets the version in package.json, Cargo.toml, tauri.conf.json …
-git commit -am "Release v0.2.0"
-git tag v0.2.0
-git push origin main v0.2.0
+npm run release:version 0.3.0   # sets the version in package.json, Cargo.toml, tauri.conf.json …
+# add a "### 0.3.0 – <date>" section to the changelog in this README
+git commit -am "Release v0.3.0"
+git tag v0.3.0
+git push origin main v0.3.0
 ```
 
 The workflow checks that the tag matches the version, runs the tests, builds the installer and
-creates a **draft** release with the setup attached – review it on GitHub and click *Publish*.
+creates a **draft** release with the setup attached. The release notes are taken from the matching
+section of the [changelog](#changelog) below – review the draft on GitHub and click *Publish*.
 Tags with a suffix (`v0.2.0-beta.1`) become pre-releases. Every push and pull request runs the
 test suite ([`ci.yml`](.github/workflows/ci.yml)).
 
@@ -121,6 +140,76 @@ test suite ([`ci.yml`](.github/workflows/ci.yml)).
 
 The test suite round-trips its fixtures and all README files in `node_modules` byte-for-byte and
 checks that full re-serialization renders identical HTML.
+
+## Changelog
+
+### 0.2.0 – 2026-09-28
+
+**New**
+
+- **Find & replace** (`Ctrl+F` / `Ctrl+H`, `F3` / `Shift+F3`): all matches highlighted with a
+  counter, options *match case*, *whole word* (also for umlauts) and *regular expression* with
+  `$1` … in the replacement. Finds text inside formatting, lists, tables and code; *Replace*
+  keeps the formatting, *Replace all* is a single undo step.
+- **Open HTML files** (`.html` / `.htm`, also by drag & drop): converted to Markdown. Before
+  importing, a dialog lists exactly what gets lost in this file (scripts, stylesheets, `style` /
+  `class` attributes, `<span>`, `<u>` …). `<div align="center">`, `<br>` and `<img>` with size are
+  kept, iframes become links. The result is a new document – the HTML file is never overwritten,
+  *Save* proposes `<name>.md` next to it.
+- **Recently opened files**: the Open button has a menu with the last 10 files; missing files are
+  reported and removed from the list.
+- **Zoom** 50–300 %: `Ctrl+Mouse wheel` (also touchpad pinch), `Ctrl+Plus` / `Ctrl+Minus` /
+  `Ctrl+0` and a *− 100 % +* control in the status bar. Only the document is scaled; the level is
+  remembered.
+- Search button in the toolbar.
+
+**Data safety**
+
+- **Changes by other programs are detected** (checked before every save and when the window gets
+  focus): an unchanged document reloads silently, an edited one asks *Reload* / *Keep mine*.
+  Saving never overwrites such changes without asking (*Overwrite* / *Save as…* / *Cancel*).
+  A deleted file is reported; *Save* creates it again.
+- **Crash recovery**: while there are unsaved changes, a copy is kept in the app data folder
+  (never in the document itself). After a crash, power loss or forced restart, the next start offers
+  to restore them.
+- Text typed while a save is in progress is no longer marked as saved (closing the window would
+  not have asked for it).
+- Saving through a symbolic link updates the target and keeps the link.
+
+**Fixed**
+
+- Dialogs no longer let the keyboard focus escape: with a dialog open, `Tab` could move into the
+  editor behind it and text went blindly into the document. All dialogs now share one frame with a
+  locked background, consistent `Esc`, click-outside and focus return.
+- `Enter` in the emoji and About dialogs acted even when another button (e.g. *Cancel*) was focused.
+- The emoji grid was ~1,900 `Tab` stops; it is now one stop with arrow-key navigation.
+- Images whose file names contain `#`, `?` or `%` were not displayed.
+- Downloading the icon list had no timeout and could hang forever when offline.
+- At the default window width the toolbar wrapped into two rows.
+
+**Security**
+
+- Printing renders the document in a sandbox: scripts inside an untrusted `.md` file can't run.
+
+**Performance**
+
+- Saving after an edit only serializes the changed blocks: 262 ms → 2 ms for a 1 MB document;
+  list items no longer rebuild the whole list.
+
+### 0.1.0 – 2026-09-28
+
+First release.
+
+- WYSIWYG editing of CommonMark + GitHub Flavored Markdown with lossless, byte-identical round-trip
+  (BOM and CRLF/LF preserved, unchanged blocks written back from the original bytes).
+- README-friendly HTML: `<div align="center">`, `<br>`, `<img width>` and `<a><img></a>`.
+- Tables with toolbar (rows, columns, alignment), task lists, code blocks, raw HTML blocks.
+- Badge & icon picker (shields.io, badgen.net, forthebadge.com, Simple Icons, own images) with
+  configurable sources and offline cache.
+- Emoji & symbol picker (Unicode 18, CLDR 48) with English and German search.
+- Images like on GitHub (relative paths, `/path` from the repository root), drag & drop.
+- HTML export, copy HTML, print, close document, Help and About.
+- Windows installer (NSIS), `.md` file association.
 
 ## License
 

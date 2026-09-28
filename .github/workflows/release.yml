@@ -5,7 +5,8 @@
 #   git tag v0.2.0
 #   git push origin main v0.2.0
 #
-# The release is created as a draft: check it on GitHub, add notes, then "Publish release".
+# The release notes come from the "### x.y.z" section of the changelog in README.md.
+# The release is created as a draft: check it on GitHub, then "Publish release".
 name: Release
 
 on:
@@ -45,6 +46,18 @@ jobs:
       - name: Tag matches the app version
         run: node scripts/set-version.mjs --check ${{ env.TAG }}
 
+      # the "### x.y.z" section of the changelog in README.md (fails if it's missing)
+      - name: Release notes from the README changelog
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            node scripts/release-notes.mjs "$TAG"
+            echo
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: npm ci
 
@@ -61,14 +74,4 @@ jobs:
           releaseDraft: true
           prerelease: ${{ contains(env.TAG, '-') }}
           uploadUpdaterJson: false
-          releaseBody: |
-            ## Download
-
-            **`Mark.O.Down_*_x64-setup.exe`** below – Windows 10/11, 64-bit.
-
-            The installer is not code-signed yet: if Windows SmartScreen shows
-            "Windows protected your PC", click **More info → Run anyway**.
-
-            ## Changes
-
-            - …
+          releaseBody: ${{ steps.notes.outputs.body }}
