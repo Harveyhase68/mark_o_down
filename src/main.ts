@@ -5,7 +5,8 @@ import { importMarkdown, exportMarkdown, NEW_DOC_META, type DocMeta } from './md
 import { documentTitle, renderHtml, renderHtmlPage } from './md/html'
 import { createEditor, editImage, editLink, insertEmoji, type EditorHooks } from './editor/editor'
 import { createToolbar } from './editor/toolbar'
-import { askChoice, askSaveChanges } from './editor/dialog'
+import { askChoice, askSaveChanges, type MenuItem } from './editor/dialog'
+import { addRecent, clearRecent, recentFiles, removeRecent, shortDir } from './recent'
 import { htmlToMarkdown } from './md/htmlImport'
 import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
@@ -97,6 +98,7 @@ const editor = createEditor(editorEl, hooks)
 const view = editor.view
 const toolbar = createToolbar($('#toolbar'), view, {
   open: () => void openFile(),
+  openMenu: () => openMenuItems(),
   save: () => void saveFile(false),
   saveAs: () => void saveFile(true),
   close: () => void closeDocument(),
@@ -217,6 +219,7 @@ async function openPath(path: string) {
     const f = await host.readFile(path)
     if (host.isHtmlFile(path)) return await importHtml(f)
     setDocument(f.text, f)
+    void rememberRecent(f.path)
   } catch (e) {
     await host.showError(`Datei konnte nicht geöffnet werden:\n${e}`)
   }
@@ -252,6 +255,7 @@ async function importHtml(f: host.MdFile) {
     if (choice !== 'import') return
   }
   setDocument(result.markdown, { path: null, suggested: `${withoutExt(f.path)}.md`, root: f.root })
+  void rememberRecent(f.path)
   doc.saved = null // a new document: not saved yet
   updateChrome()
   flash(`„${name}“ als Markdown importiert – „Speichern“ legt ${withoutExt(name)}.md an`)
@@ -309,6 +313,7 @@ function saveFile(saveAs: boolean): Promise<boolean> {
       const moved = path !== doc.path
       doc.path = path
       doc.suggested = null
+      void rememberRecent(path)
       if (moved) {
         // "Save as" into another folder: relative images now resolve from there
         doc.root = host.dirname(path)
@@ -330,6 +335,44 @@ function saveFile(saveAs: boolean): Promise<boolean> {
 /** Close = back to an empty, unsaved document. */
 async function closeDocument() {
   if (await confirmDiscard()) setDocument('', { path: null })
+}
+
+// ------------------------------------------------------------------ recently opened files
+
+/** Synchronous copy for building the menu. */
+let recentCache: string[] = []
+void recentFiles().then((list) => (recentCache = list))
+
+async function rememberRecent(path: string) {
+  if (!host.isTauri) return // browser preview: no real paths
+  await addRecent(path)
+  recentCache = await recentFiles()
+}
+
+function openMenuItems(): MenuItem[] {
+  const items: MenuItem[] = [{ label: 'Öffnen…', shortcut: 'Strg+O', run: () => void openFile() }]
+  if (!host.isTauri) return items
+  items.push('separator')
+  if (!recentCache.length) items.push({ label: 'Keine zuletzt geöffneten Dateien', disabled: true, run: () => {} })
+  for (const p of recentCache) items.push({ label: host.basename(p), shortcut: shortDir(p), title: p, run: () => void openRecent(p) })
+  if (recentCache.length) {
+    items.push('separator', {
+      label: 'Liste leeren',
+      run: () => void clearRecent().then(() => (recentCache = [])),
+    })
+  }
+  return items
+}
+
+async function openRecent(path: string) {
+  if (!(await confirmDiscard())) return
+  if ((await host.fileHash(path)) === null) {
+    await removeRecent(path)
+    recentCache = await recentFiles()
+    await host.showError(`„${host.basename(path)}“ wurde nicht gefunden – vielleicht verschoben oder gelöscht:\n\n${path}\n\nDer Eintrag wurde aus der Liste entfernt.`)
+    return
+  }
+  await openPath(path)
 }
 
 // ------------------------------------------------------------------ HTML export, clipboard, print

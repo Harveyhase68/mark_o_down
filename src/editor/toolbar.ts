@@ -85,6 +85,8 @@ interface Group {
 
 export interface ToolbarActions {
   open: () => void
+  /** Öffnen… + recently opened files */
+  openMenu: () => MenuItem[]
   save: () => void
   saveAs: () => void
   close: () => void
@@ -116,7 +118,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
 
   const groups: (Group | 'heading')[] = ([
     [
-      { id: 'open', title: 'Öffnen (Strg+O)', action: () => actions.open() },
+      { id: 'open', title: 'Öffnen (Strg+O), zuletzt geöffnete Dateien', menu: () => actions.openMenu() },
       {
         id: 'save',
         title: 'Speichern, Speichern unter…, HTML-Export',

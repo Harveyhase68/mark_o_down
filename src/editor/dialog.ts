@@ -104,7 +104,7 @@ export function openDialog(opts: {
 
 // ------------------------------------------------------------------ popup menu
 
-export type MenuItem = { label: string; shortcut?: string; run: () => void } | 'separator'
+export type MenuItem = { label: string; shortcut?: string; title?: string; disabled?: boolean; run: () => void } | 'separator'
 
 let openMenuState: { anchor: HTMLElement; close: () => void } | null = null
 
@@ -129,6 +129,8 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]) {
     btn.innerHTML = '<span></span><kbd></kbd>'
     btn.querySelector('span')!.textContent = item.label
     btn.querySelector('kbd')!.textContent = item.shortcut ?? ''
+    if (item.title) btn.title = item.title
+    btn.disabled = !!item.disabled
     btn.onmousedown = (e) => e.preventDefault()
     btn.onclick = () => {
       close()
