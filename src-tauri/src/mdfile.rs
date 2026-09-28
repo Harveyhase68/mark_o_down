@@ -63,6 +63,49 @@ pub fn encode(text: &str, eol: Eol, bom: bool) -> Vec<u8> {
     out
 }
 
+/// Fingerprint of a file's bytes (length + FNV-1a 64), to detect changes
+/// made outside the editor.
+pub fn content_hash(bytes: &[u8]) -> String {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for &b in bytes {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    format!("{:x}-{h:016x}", bytes.len())
+}
+
+/// Error text the frontend recognizes: the file changed on disk since it was loaded.
+pub const EXTERNAL_CHANGE: &str = "EXTERNAL_CHANGE";
+
+/// Why a save was refused or failed.
+#[derive(Debug, PartialEq)]
+pub enum SaveError {
+    /// The file on disk is no longer the one that was loaded (someone else wrote it).
+    ExternalChange,
+    Io(String),
+}
+
+/// Save the document safely:
+/// * `expected`: hash of the file as it was loaded/last saved. If the file on
+///   disk differs, nothing is written (`ExternalChange`) unless `force`.
+///   A missing file is fine (deleted or moved meanwhile – nothing to lose).
+/// * Symlinks are followed, so the link stays a link and its target is updated.
+///
+/// Returns the hash of the written content.
+pub fn save_document(path: &Path, bytes: &[u8], expected: Option<&str>, force: bool) -> Result<String, SaveError> {
+    let target = std::fs::canonicalize(path).map(crate::paths::strip_verbatim).unwrap_or_else(|_| path.to_path_buf());
+    if let (Some(expected), false) = (expected, force) {
+        match std::fs::read(&target) {
+            Ok(current) if content_hash(&current) != expected => return Err(SaveError::ExternalChange),
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(SaveError::Io(e.to_string())),
+        }
+    }
+    write_atomic(&target, bytes).map_err(|e| SaveError::Io(e.to_string()))?;
+    Ok(content_hash(bytes))
+}
+
 /// Write to a temp file next to the target, then rename over it, so a crash
 /// or full disk never leaves a half-written document.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -135,5 +178,73 @@ mod tests {
         write_atomic(&p, b"two").unwrap();
         assert_eq!(std::fs::read(&p).unwrap(), b"two");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod save_tests {
+    use super::*;
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("mod_save_{name}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn saves_when_the_file_is_unchanged() {
+        let d = temp_dir("unchanged");
+        let p = d.join("a.md");
+        std::fs::write(&p, b"one").unwrap();
+        let h = content_hash(b"one");
+        assert_eq!(save_document(&p, b"two", Some(&h), false), Ok(content_hash(b"two")));
+        assert_eq!(std::fs::read(&p).unwrap(), b"two");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn refuses_to_overwrite_external_changes() {
+        let d = temp_dir("conflict");
+        let p = d.join("a.md");
+        std::fs::write(&p, b"one").unwrap();
+        let loaded = content_hash(b"one");
+        std::fs::write(&p, b"changed by git pull").unwrap();
+        assert_eq!(save_document(&p, b"mine", Some(&loaded), false), Err(SaveError::ExternalChange));
+        assert_eq!(std::fs::read(&p).unwrap(), b"changed by git pull", "external content must survive");
+        // the user explicitly chose "overwrite"
+        assert!(save_document(&p, b"mine", Some(&loaded), true).is_ok());
+        assert_eq!(std::fs::read(&p).unwrap(), b"mine");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn recreates_a_deleted_file() {
+        let d = temp_dir("deleted");
+        let p = d.join("a.md");
+        assert!(save_document(&p, b"new", Some(&content_hash(b"old")), false).is_ok());
+        assert_eq!(std::fs::read(&p).unwrap(), b"new");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn keeps_symlinks() {
+        let d = temp_dir("symlink");
+        let target = d.join("real.md");
+        let link = d.join("link.md");
+        std::fs::write(&target, b"one").unwrap();
+        #[cfg(unix)]
+        let made = std::os::unix::fs::symlink(&target, &link);
+        // Windows needs developer mode (or admin) to create symlinks: skip otherwise
+        #[cfg(windows)]
+        let made = std::os::windows::fs::symlink_file(&target, &link);
+        if made.is_err() {
+            eprintln!("symlink test skipped: cannot create symlinks here");
+            return;
+        }
+        save_document(&link, b"two", None, false).unwrap();
+        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read(&target).unwrap(), b"two");
+        std::fs::remove_dir_all(&d).unwrap();
     }
 }

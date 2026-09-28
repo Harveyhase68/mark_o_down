@@ -9,6 +9,8 @@ import { askSaveChanges } from './editor/dialog'
 import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
 import * as host from './platform'
+import { createGuard } from './guard'
+import { Selection } from 'prosemirror-state'
 
 // ------------------------------------------------------------------ state
 
@@ -20,8 +22,20 @@ interface DocState {
   bom: boolean
   mixedEol: boolean
   meta: DocMeta
-  /** Document as last loaded/saved, for the "modified" indicator. */
-  saved: PMNode
+  /** Document as last loaded/saved, for the "modified" indicator (null: restored, never saved). */
+  saved: PMNode | null
+  /** Hash of the file on disk as loaded/saved – detects changes by other programs. */
+  diskHash: string | null
+}
+
+/** What we know about the file behind a document. */
+interface FileInfo {
+  path: string | null
+  root?: string | null
+  eol?: host.Eol
+  bom?: boolean
+  mixedEol?: boolean
+  hash?: string | null
 }
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T
@@ -44,8 +58,32 @@ const hooks: EditorHooks = {
       }
     : undefined,
   openExternal: (href) => void host.openExternal(href),
-  onChange: () => scheduleUpdate(),
+  onChange: () => {
+    scheduleUpdate()
+    guard.onChange()
+  },
 }
+
+/** A save/close question is open: background checks must not interrupt it. */
+let busy = false
+
+const guard = createGuard({
+  doc: () => doc,
+  isDirty: () => isDirty(),
+  markdown: () => markdown(),
+  reload: () => reloadFromDisk(),
+  restore: (data) => {
+    setDocument(data.markdown, { path: data.path, eol: data.eol, bom: data.bom, hash: data.diskHash })
+    doc.saved = null // restored changes are unsaved
+    updateChrome()
+  },
+  busy: () => busy,
+  flash: (m) => flash(m),
+  markChanged: () => {
+    doc.saved = null
+    updateChrome()
+  },
+})
 
 const editor = createEditor(editorEl, hooks)
 const view = editor.view
@@ -68,7 +106,7 @@ const toolbar = createToolbar($('#toolbar'), view, {
 
 // ------------------------------------------------------------------ UI updates
 
-const isDirty = () => !view.state.doc.eq(doc.saved)
+const isDirty = () => doc.saved === null || !view.state.doc.eq(doc.saved)
 const markdown = () => exportMarkdown(view.state.doc, doc.meta)
 const docName = () => (doc.path ? host.basename(doc.path) : 'Unbenannt.md')
 const withoutExt = (name: string) => name.replace(/\.[^.\\/]+$/, '')
@@ -123,7 +161,7 @@ function toggleSource() {
 
 // ------------------------------------------------------------------ documents
 
-function setDocument(text: string, file: Partial<DocState> & { path: string | null }) {
+function setDocument(text: string, file: FileInfo) {
   const { doc: pm, meta } = text ? importMarkdown(text) : { doc: null, meta: NEW_DOC_META }
   // path/root first: the editor resolves image paths while rendering the new document
   doc = {
@@ -134,19 +172,33 @@ function setDocument(text: string, file: Partial<DocState> & { path: string | nu
     mixedEol: file.mixedEol ?? false,
     meta,
     saved: view.state.doc,
+    diskHash: file.hash ?? null,
   }
   editor.load(pm ?? view.state.schema.nodes.doc.create(null, view.state.schema.nodes.paragraph.create()))
   doc.saved = view.state.doc
+  void guard.clearRecovery()
   updateChrome()
   view.focus()
 }
 
+/** Run a user-facing decision without background checks popping up in between. */
+async function exclusive<T>(fn: () => Promise<T>): Promise<T> {
+  busy = true
+  try {
+    return await fn()
+  } finally {
+    busy = false
+  }
+}
+
 /** Before the document goes away: offer to save changes. false = the user cancelled. */
-async function confirmDiscard(): Promise<boolean> {
-  if (!isDirty()) return true
-  const choice = await askSaveChanges(docName())
-  if (choice === 'save') return saveFile(false)
-  return choice === 'discard'
+function confirmDiscard(): Promise<boolean> {
+  return exclusive(async () => {
+    if (!isDirty()) return true
+    const choice = await askSaveChanges(docName())
+    if (choice === 'save') return saveFile(false)
+    return choice === 'discard'
+  })
 }
 
 async function openPath(path: string) {
@@ -158,6 +210,19 @@ async function openPath(path: string) {
   }
 }
 
+/** Re-read the current file (changed by another program), keeping cursor and scroll position. */
+async function reloadFromDisk() {
+  if (!doc.path) return
+  const scroller = $('#scroller')
+  const top = scroller.scrollTop
+  const at = view.state.selection.from
+  const f = await host.readFile(doc.path)
+  setDocument(f.text, f)
+  const pos = Math.min(at, view.state.doc.content.size)
+  view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(pos))))
+  scroller.scrollTop = top
+}
+
 async function openFile() {
   if (!(await confirmDiscard())) return
   if (!host.isTauri) return browserOpen()
@@ -166,29 +231,52 @@ async function openFile() {
 }
 
 /** true if the document was written. */
-async function saveFile(saveAs: boolean): Promise<boolean> {
-  const text = markdown()
-  if (!host.isTauri) return browserSave(text)
-  let path = doc.path
-  if (saveAs || !path) path = await host.pickSavePath(doc.path)
-  if (!path) return false
-  try {
-    await host.writeFile(path, text, doc.eol, doc.bom)
-    const moved = path !== doc.path
-    doc.path = path
-    if (moved) {
-      // "Save as" into another folder: relative images now resolve from there
-      doc.root = host.dirname(path)
-      editor.refreshImages()
+function saveFile(saveAs: boolean): Promise<boolean> {
+  return exclusive(async () => {
+    // exactly this state is written – typing during the (async) save stays "unsaved"
+    const snapshot = view.state.doc
+    const text = markdown()
+    if (!host.isTauri) return browserSave(text)
+    let path = doc.path
+    if (saveAs || !path) path = await host.pickSavePath(doc.path)
+    if (!path) return false
+    // the same file: it must still be the version we loaded (otherwise someone else changed it)
+    const expected = path === doc.path ? doc.diskHash : null
+    try {
+      let hash: string
+      try {
+        hash = await host.writeFile(path, text, doc.eol, doc.bom, expected)
+      } catch (e) {
+        if (!(e instanceof host.ExternalChangeError)) throw e
+        const choice = await guard.askOverwrite(host.basename(path))
+        if (choice === 'cancel') {
+          await guard.acknowledgeDisk() // seen it – the background check shouldn't ask again
+          return false
+        }
+        if (choice === 'saveAs') {
+          busy = false // nested save runs its own exclusive section
+          return saveFile(true)
+        }
+        hash = await host.writeFile(path, text, doc.eol, doc.bom, expected, true)
+      }
+      const moved = path !== doc.path
+      doc.path = path
+      if (moved) {
+        // "Save as" into another folder: relative images now resolve from there
+        doc.root = host.dirname(path)
+        editor.refreshImages()
+      }
+      doc.diskHash = hash
+      doc.mixedEol = false
+      doc.saved = snapshot
+      if (!isDirty()) void guard.clearRecovery()
+      updateChrome()
+      return true
+    } catch (e) {
+      await host.showError(`Speichern fehlgeschlagen:\n${e}`)
+      return false
     }
-    doc.mixedEol = false
-    doc.saved = view.state.doc
-    updateChrome()
-    return true
-  } catch (e) {
-    await host.showError(`Speichern fehlgeschlagen:\n${e}`)
-    return false
-  }
+  })
 }
 
 /** Close = back to an empty, unsaved document. */
@@ -297,7 +385,9 @@ async function setupWindow(view: EditorView) {
 
   // closing the window: Speichern / Nicht speichern / Abbrechen
   await getCurrentWindow().onCloseRequested(async (e) => {
-    if (!(await confirmDiscard())) e.preventDefault()
+    if (!(await confirmDiscard())) return e.preventDefault()
+    // leaving on purpose: no recovery copy must survive (it would be offered next time)
+    await guard.clearRecovery()
   })
 
   // Windows blocks drag & drop from Explorer into an elevated (admin) process.
@@ -341,9 +431,12 @@ requestAnimationFrame(() => {
   document.body.classList.add('ready')
   if (host.isTauri) void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().show())
 })
-void host.initialFile().then((p) => {
-  if (p) void openPath(p)
-})
+void (async () => {
+  const p = await host.initialFile()
+  if (p) await openPath(p)
+  // after a crash: offer the unsaved changes that were left behind
+  await guard.offerRecovery()
+})()
 
 // Dev hook for testing in the browser console / pane.
-if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view } })
+if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, isDirty: () => isDirty() } })

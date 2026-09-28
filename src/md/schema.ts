@@ -236,5 +236,3 @@ const marks: Record<string, MarkSpec> = {
 }
 
 export const schema = new Schema({ nodes, marks })
-
-export const SRC_ATTRS = Object.keys(srcAttrs)

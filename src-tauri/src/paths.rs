@@ -10,7 +10,7 @@ pub fn absolute(path: &Path) -> PathBuf {
     strip_verbatim(abs)
 }
 
-fn strip_verbatim(p: PathBuf) -> PathBuf {
+pub fn strip_verbatim(p: PathBuf) -> PathBuf {
     let s = p.to_string_lossy();
     if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
         PathBuf::from(format!(r"\\{rest}"))
@@ -36,9 +36,13 @@ const SKIP_DIRS: &[&str] = &["node_modules", "target", ".git", "dist", "build", 
 
 /// Image files below `dir` (relative, with `/`), breadth-first, limited.
 pub fn list_images(dir: &Path, max_depth: usize, max_files: usize) -> Vec<String> {
+    let is_image = |p: &Path| {
+        p.extension()
+            .is_some_and(|x| IMAGE_EXT.contains(&x.to_string_lossy().to_lowercase().as_str()))
+    };
     let mut out = Vec::new();
-    let mut queue = vec![(dir.to_path_buf(), 0usize)];
-    while let Some((d, depth)) = (!queue.is_empty()).then(|| queue.remove(0)) {
+    let mut queue = std::collections::VecDeque::from([(dir.to_path_buf(), 0usize)]);
+    while let Some((d, depth)) = queue.pop_front() {
         let Ok(entries) = std::fs::read_dir(&d) else { continue };
         let mut entries: Vec<_> = entries.flatten().collect();
         entries.sort_by_key(|e| e.file_name());
@@ -47,18 +51,14 @@ pub fn list_images(dir: &Path, max_depth: usize, max_files: usize) -> Vec<String
             let name = e.file_name().to_string_lossy().into_owned();
             if p.is_dir() {
                 if depth < max_depth && !name.starts_with('.') && !SKIP_DIRS.contains(&name.as_str()) {
-                    queue.push((p, depth + 1));
+                    queue.push_back((p, depth + 1));
                 }
-            } else if p
-                .extension()
-                .map(|x| IMAGE_EXT.contains(&x.to_string_lossy().to_lowercase().as_str()))
-                .unwrap_or(false)
+            } else if is_image(&p)
+                && let Ok(rel) = p.strip_prefix(dir)
             {
-                if let Ok(rel) = p.strip_prefix(dir) {
-                    out.push(rel.to_string_lossy().replace('\\', "/"));
-                    if out.len() >= max_files {
-                        return out;
-                    }
+                out.push(rel.to_string_lossy().replace('\\', "/"));
+                if out.len() >= max_files {
+                    return out;
                 }
             }
         }

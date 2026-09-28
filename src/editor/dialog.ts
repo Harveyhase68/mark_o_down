@@ -22,6 +22,8 @@ export interface DialogResult {
 
 export function openDialog(opts: {
   title: string
+  /** Explanatory text below the title (plain text, line breaks kept). */
+  message?: string
   fields: Field[]
   buttons?: DialogButton[]
   extra?: (form: HTMLFormElement, set: (name: string, value: string) => void) => void
@@ -35,8 +37,11 @@ export function openDialog(opts: {
     backdrop.className = 'dialog-backdrop'
     const form = document.createElement('form')
     form.className = 'dialog'
-    form.innerHTML = `<h2></h2><div class="fields"></div><div class="extra"></div><div class="buttons"></div>`
+    form.innerHTML = `<h2></h2><p class="message"></p><div class="fields"></div><div class="extra"></div><div class="buttons"></div>`
     form.querySelector('h2')!.textContent = opts.title
+    const message = form.querySelector<HTMLElement>('.message')!
+    if (opts.message) message.textContent = opts.message
+    else message.remove()
 
     const inputs = new Map<string, HTMLInputElement | HTMLTextAreaElement>()
     for (const f of opts.fields) {
@@ -183,4 +188,10 @@ export async function askSaveChanges(name: string): Promise<SaveChoice> {
     ],
   })
   return (res?.action as SaveChoice | undefined) ?? 'cancel'
+}
+
+/** A question with custom answers; resolves with the chosen value or 'cancel' (Esc). */
+export async function askChoice(title: string, message: string, buttons: DialogButton[]): Promise<string> {
+  const res = await openDialog({ title, message, fields: [], buttons })
+  return res?.action ?? 'cancel'
 }

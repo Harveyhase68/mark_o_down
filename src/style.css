@@ -600,6 +600,14 @@ body.show-source #source-pane {
   font-size: 16px;
 }
 
+.dialog .message {
+  margin: -4px 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
 .dialog label {
   display: grid;
   gap: 3px;

@@ -50,16 +50,8 @@ function blockNode(node: PMNode): M.RootContent | null {
     case 'raw_block':
       return node.textContent ? { type: 'html', value: node.textContent } : null
     case 'bullet_list':
-      return { type: 'list', ordered: false, spread: a.spread, children: items(node), data: mdo({ bullet: a.bullet, indent: a.indent }) } as M.List
     case 'ordered_list':
-      return {
-        type: 'list',
-        ordered: true,
-        start: a.start,
-        spread: a.spread,
-        children: items(node),
-        data: mdo({ delim: a.delim, increment: a.increment, indent: a.indent }),
-      } as M.List
+      return { ...listShell(node), children: items(node) }
     case 'table':
       return table(node)
     default:
@@ -75,6 +67,14 @@ export function flow(node: PMNode): M.RootContent[] {
     out.push(...blockToMdast(child))
   })
   return out
+}
+
+/** A list node with its style but without items. */
+export function listShell(list: PMNode): M.List {
+  const a = list.attrs
+  return list.type.name === 'ordered_list'
+    ? ({ type: 'list', ordered: true, start: a.start, spread: a.spread, children: [], data: mdo({ delim: a.delim, increment: a.increment, indent: a.indent }) } as M.List)
+    : ({ type: 'list', ordered: false, spread: a.spread, children: [], data: mdo({ bullet: a.bullet, indent: a.indent }) } as M.List)
 }
 
 export function listItemToMdast(item: PMNode): M.ListItem {

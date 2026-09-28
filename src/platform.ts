@@ -14,6 +14,8 @@ export interface MdFile {
   eol: Eol
   bom: boolean
   mixedEol: boolean
+  /** Hash of the bytes on disk, to detect changes by other programs. */
+  hash: string
 }
 
 export const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
@@ -69,8 +71,68 @@ export async function fetchCached(url: string, maxAgeHours: number, force = fals
   return text
 }
 
-export async function writeFile(path: string, text: string, eol: Eol, bom: boolean): Promise<void> {
-  await invoke('write_markdown', { path, text, eol, bom })
+/** The file on disk changed since it was loaded/saved (another program wrote it). */
+export class ExternalChangeError extends Error {
+  constructor() {
+    super('Die Datei wurde außerhalb von Mark O Down geändert.')
+  }
+}
+
+/**
+ * Save. `expected` = hash of the file as loaded/last saved: if the file on disk
+ * differs, nothing is written and ExternalChangeError is thrown (unless `force`).
+ * Returns the new hash.
+ */
+export async function writeFile(path: string, text: string, eol: Eol, bom: boolean, expected: string | null, force = false): Promise<string> {
+  try {
+    return await invoke<string>('write_markdown', { path, text, eol, bom, expected, force })
+  } catch (e) {
+    if (e === 'EXTERNAL_CHANGE') throw new ExternalChangeError()
+    throw e
+  }
+}
+
+/** Current hash of a file; null if it doesn't exist (anymore). */
+export async function fileHash(path: string): Promise<string | null> {
+  return isTauri ? invoke<string | null>('file_hash', { path }) : null
+}
+
+// ------------------------------------------------------------------ crash recovery
+
+export interface RecoveryData {
+  /** Document path (null = never saved). */
+  path: string | null
+  markdown: string
+  eol: Eol
+  bom: boolean
+  /** Hash of the file on disk the changes are based on. */
+  diskHash: string | null
+  savedAt: number
+}
+
+export async function recoveryWrite(data: RecoveryData): Promise<void> {
+  if (isTauri) await invoke('recovery_write', { data: JSON.stringify(data) })
+}
+
+export async function recoveryClear(): Promise<void> {
+  if (isTauri) await invoke('recovery_clear')
+}
+
+/** Recovery copies left by crashed instances. */
+export async function recoveryOrphans(): Promise<{ id: string; data: RecoveryData }[]> {
+  if (!isTauri) return []
+  const list = await invoke<{ id: string; data: string }[]>('recovery_orphans')
+  return list.flatMap(({ id, data }) => {
+    try {
+      return [{ id, data: JSON.parse(data) as RecoveryData }]
+    } catch {
+      return [] // unreadable leftovers are ignored
+    }
+  })
+}
+
+export async function recoveryRemove(id: string): Promise<void> {
+  if (isTauri) await invoke('recovery_remove', { id })
 }
 
 export async function initialFile(): Promise<string | null> {
@@ -92,12 +154,6 @@ export async function pickImagePath(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
   const p = await open({ multiple: false, directory: false, filters: IMG_FILTER })
   return typeof p === 'string' ? p : null
-}
-
-export async function confirm(text: string, okLabel: string): Promise<boolean> {
-  if (!isTauri) return window.confirm(text)
-  const { ask } = await import('@tauri-apps/plugin-dialog')
-  return ask(text, { title: 'Mark O Down', kind: 'warning', okLabel, cancelLabel: 'Abbrechen' })
 }
 
 export async function showError(text: string): Promise<void> {
@@ -147,12 +203,7 @@ export function joinPath(base: string, rel: string): string {
 export function resolveImage(src: string, docPath: string | null, root: string | null): string {
   if (!src || (/^[a-z][a-z0-9+.-]*:/i.test(src) && !isFileSystemAbsolute(src))) return src
   if (!isTauri) return src
-  let path = src.split(/[?#]/)[0]
-  try {
-    path = decodeURI(path)
-  } catch {
-    /* keep as-is */
-  }
+  let path = decodePath(src.split(/[?#]/)[0])
   if (!isFileSystemAbsolute(path)) {
     if (!docPath) return src
     const base = path.startsWith('/') && root ? root : dirname(docPath)
@@ -171,8 +222,29 @@ export function relativeImagePath(file: string, docPath: string | null): string 
   if (from[0].toLowerCase() !== to[0].toLowerCase()) return norm(file)
   let i = 0
   while (i < from.length && i < to.length - 1 && from[i].toLowerCase() === to[i].toLowerCase()) i++
-  const rel = [...Array(from.length - i).fill('..'), ...to.slice(i)].join('/')
-  return rel.replace(/ /g, "%20")
+  return encodePath([...Array(from.length - i).fill('..'), ...to.slice(i)].join('/'))
+}
+
+/**
+ * File path → Markdown/URL path: only what would break it is encoded
+ * (`%`, space, and `#`/`?` which would start a fragment/query). Umlauts stay readable.
+ */
+export function encodePath(path: string): string {
+  return path.replace(/[% #?]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'))
+}
+
+/** URL path → file path; decodes every %XX (also %23 = #, which decodeURI keeps). */
+export function decodePath(path: string): string {
+  return path
+    .split('/')
+    .map((seg) => {
+      try {
+        return decodeURIComponent(seg)
+      } catch {
+        return seg // a literal % that isn't an escape
+      }
+    })
+    .join('/')
 }
 
 /** True if the app runs with administrator rights (Windows), which blocks drag & drop from Explorer. */

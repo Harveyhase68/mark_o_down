@@ -6,6 +6,10 @@ import { renderHtmlPage } from '../md/html'
 export async function printMarkdown(markdown: string, title: string, resolveImage: (src: string) => string): Promise<void> {
   const frame = document.createElement('iframe')
   frame.setAttribute('aria-hidden', 'true')
+  // The document may contain raw HTML (<script>, onerror=…) from an untrusted .md.
+  // No 'allow-scripts': nothing in it may run – it would share the app's origin
+  // and with it access to the Tauri file commands. allow-modals: print dialog.
+  frame.setAttribute('sandbox', 'allow-same-origin allow-modals')
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
   document.body.append(frame)
 

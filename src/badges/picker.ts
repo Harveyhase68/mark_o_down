@@ -17,6 +17,7 @@ import {
   type PickerConfig,
 } from './config'
 import * as host from '../platform'
+import { setTagAttr } from '../md/htmlTags'
 
 export interface PickedImage {
   src: string
@@ -351,7 +352,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
         const hits = all.filter((f) => f.toLowerCase().includes(q))
         status.textContent = `${hits.length} Bild(er) in ${host.dirname(opts.docPath!)}`
         for (const f of hits.slice(0, 300)) {
-          const rel = f.replace(/ /g, '%20')
+          const rel = host.encodePath(f)
           const b = el('button', { type: 'button', class: 'pk-tile', title: f, 'aria-pressed': String(cur.src === rel) }, el('img', { src: opts.resolveImage(rel), alt: '', loading: 'lazy' }), el('span', {}, f))
           b.onclick = () => {
             for (const t of grid.children) t.setAttribute('aria-pressed', String(t === b))
@@ -436,7 +437,7 @@ function altFromPath(p: string): string {
 
 /** Keep an `<img>` tag in sync with the chosen src/alt. */
 function syncHtml(tag: string, p: PickedImage): string {
-  return tag.replace(/\ssrc="[^"]*"/, ` src="${escapeAttr(p.src)}"`).replace(/\salt="[^"]*"/, ` alt="${escapeAttr(p.alt)}"`)
+  return setTagAttr(setTagAttr(tag, 'src', p.src), 'alt', p.alt)
 }
 
 // ------------------------------------------------------------------ config editor

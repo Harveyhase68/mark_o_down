@@ -3,6 +3,7 @@
 mod cache;
 mod mdfile;
 mod paths;
+mod recovery;
 
 use std::path::{Path, PathBuf};
 
@@ -19,6 +20,8 @@ struct OpenedFile {
     path: String,
     /// Base for `/…` image paths: the Git repo root, else the document folder.
     root: String,
+    /// Fingerprint of the bytes on disk, to detect changes made elsewhere.
+    hash: String,
 }
 
 /// Make `dir` (recursively) readable for the webview's asset protocol.
@@ -38,17 +41,41 @@ fn read_markdown(app: tauri::AppHandle, path: String) -> Result<OpenedFile, Stri
     // images next to the document and anywhere in its repository
     allow_assets(&app, &dir);
     allow_assets(&app, &root);
-    Ok(OpenedFile { file, path: abs.to_string_lossy().into_owned(), root: root.to_string_lossy().into_owned() })
+    Ok(OpenedFile {
+        file,
+        path: abs.to_string_lossy().into_owned(),
+        root: root.to_string_lossy().into_owned(),
+        hash: mdfile::content_hash(&bytes),
+    })
 }
 
+/// Save; refuses with `EXTERNAL_CHANGE` if the file on disk no longer has the
+/// `expected` hash (changed by another program) unless `force`. Returns the new hash.
 #[tauri::command]
-fn write_markdown(app: tauri::AppHandle, path: String, text: String, eol: Eol, bom: bool) -> Result<(), String> {
+fn write_markdown(
+    app: tauri::AppHandle,
+    path: String,
+    text: String,
+    eol: Eol,
+    bom: bool,
+    expected: Option<String>,
+    force: bool,
+) -> Result<String, String> {
     let p = PathBuf::from(&path);
-    mdfile::write_atomic(&p, &mdfile::encode(&text, eol, bom)).map_err(|e| format!("{path}: {e}"))?;
+    let hash = mdfile::save_document(&p, &mdfile::encode(&text, eol, bom), expected.as_deref(), force).map_err(|e| match e {
+        mdfile::SaveError::ExternalChange => mdfile::EXTERNAL_CHANGE.to_string(),
+        mdfile::SaveError::Io(e) => format!("{path}: {e}"),
+    })?;
     if let Some(dir) = p.parent() {
         allow_assets(&app, dir);
     }
-    Ok(())
+    Ok(hash)
+}
+
+/// Current fingerprint of a file, `None` if it no longer exists.
+#[tauri::command]
+fn file_hash(path: String) -> Option<String> {
+    std::fs::read(&path).ok().map(|b| mdfile::content_hash(&b))
 }
 
 /// Write a UTF-8 text file (e.g. the HTML export) atomically.
@@ -100,6 +127,11 @@ fn main() {
             read_markdown,
             write_markdown,
             write_text,
+            file_hash,
+            recovery::recovery_write,
+            recovery::recovery_clear,
+            recovery::recovery_orphans,
+            recovery::recovery_remove,
             list_images,
             initial_file,
             is_elevated,

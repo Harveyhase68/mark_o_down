@@ -45,14 +45,9 @@ pub fn config_write(app: tauri::AppHandle, name: String, text: String) -> Result
     crate::mdfile::write_atomic(&path, text.as_bytes()).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// Stable file name for a URL (FNV-1a, 64 bit).
+/// Stable file name for a URL.
 fn cache_key(url: &str) -> String {
-    let mut h: u64 = 0xcbf29ce484222325;
-    for b in url.bytes() {
-        h ^= b as u64;
-        h = h.wrapping_mul(0x100000001b3);
-    }
-    format!("{h:016x}.cache")
+    format!("{}.cache", crate::mdfile::content_hash(url.as_bytes()))
 }
 
 fn is_fresh(path: &PathBuf, max_age: Duration) -> bool {
@@ -75,16 +70,23 @@ pub async fn fetch_cached(app: tauri::AppHandle, url: String, max_age_hours: f64
     let path = dir.join(cache_key(&url));
     let max_age = Duration::from_secs_f64(max_age_hours.max(0.0) * 3600.0);
 
-    if !force && is_fresh(&path, max_age) {
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            return Ok(text);
-        }
+    if !force
+        && is_fresh(&path, max_age)
+        && let Ok(text) = std::fs::read_to_string(&path)
+    {
+        return Ok(text);
     }
 
     let fetched = tauri::async_runtime::spawn_blocking({
         let url = url.clone();
         move || -> Result<String, String> {
-            let mut resp = ureq::get(&url).call().map_err(|e| e.to_string())?;
+            // never hang the picker on a dead connection; the stale cache is used instead
+            let agent: ureq::Agent = ureq::Agent::config_builder()
+                .timeout_connect(Some(Duration::from_secs(10)))
+                .timeout_global(Some(Duration::from_secs(30)))
+                .build()
+                .into();
+            let mut resp = agent.get(&url).call().map_err(|e| e.to_string())?;
             resp.body_mut().with_config().limit(20 * 1024 * 1024).read_to_string().map_err(|e| e.to_string())
         }
     })

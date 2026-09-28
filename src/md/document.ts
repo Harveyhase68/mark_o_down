@@ -16,7 +16,7 @@ import type * as M from 'mdast'
 import { schema } from './schema'
 import { parseMarkdown, stringifyMarkdown } from './markdown'
 import { MdastToPM, collectDefinitions, groupCenters } from './fromMdast'
-import { blockToMdast, listItemToMdast } from './toMdast'
+import { blockToMdast, listItemToMdast, listShell } from './toMdast'
 
 export interface DocMeta {
   /** Whitespace before the first block. */
@@ -92,17 +92,36 @@ function fragmentWithCanon(list: PMNode) {
 
 // ------------------------------------------------------------------ export
 
+// ProseMirror nodes are immutable and unchanged blocks keep their identity
+// across edits, so a block's serialization can be cached by node. Saving (and
+// the live source view) then only serializes what was actually edited.
+const blockCache = new WeakMap<PMNode, string>()
+const itemCache = new WeakMap<PMNode, Map<string, string>>()
+
 export function serializeBlock(node: PMNode): string {
-  const children = blockToMdast(node)
-  return children.length ? stringifyMarkdown({ type: 'root', children }) : ''
+  let out = blockCache.get(node)
+  if (out === undefined) {
+    const children = blockToMdast(node)
+    out = children.length ? stringifyMarkdown({ type: 'root', children }) : ''
+    blockCache.set(node, out)
+  }
+  return out
 }
 
 /** Serialize one item as it would appear at position `index` of `list`. */
 function serializeListItem(list: PMNode, item: PMNode, index: number): string {
-  const l = blockToMdast(list)[0] as M.List
+  const l = listShell(list)
   if (l.ordered) l.start = (l.start ?? 1) + (list.attrs.increment ? index : 0)
+  // the result depends on the item and on the list's style + the item's number
+  const key = JSON.stringify([list.type.name, l.start, l.spread, l.data])
+  let byStyle = itemCache.get(item)
+  const cached = byStyle?.get(key)
+  if (cached !== undefined) return cached
   l.children = [listItemToMdast(item)]
-  return stringifyMarkdown(l)
+  const out = stringifyMarkdown(l)
+  if (!byStyle) itemCache.set(item, (byStyle = new Map()))
+  byStyle.set(key, out)
+  return out
 }
 
 const isList = (n: PMNode | null) => n?.type.name === 'bullet_list' || n?.type.name === 'ordered_list'
