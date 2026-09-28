@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import data from '../src/emoji/unicode-data.json'
-import { codepoints, prepare, search, type UnicodeData } from '../src/emoji/search'
+import de from '../src/emoji/unicode-de.json'
+import fr from '../src/emoji/unicode-fr.json'
+import es from '../src/emoji/unicode-es.json'
+import it_ from '../src/emoji/unicode-it.json'
+import { EMOJI_GROUPS, codepoints, prepare, search, type UnicodeData, type UnicodeNames } from '../src/emoji/search'
 
-const entries = prepare(data as unknown as UnicodeData)
+const base = data as unknown as UnicodeData
+const entries = prepare(base, de as UnicodeNames)
 const names = (q: string, n = 50) => search(entries, q, n).map((e) => e.nameEn)
 const chars = (q: string, n = 50) => search(entries, q, n).map((e) => e.char)
 
@@ -11,6 +16,19 @@ describe('unicode data', () => {
     expect(entries.filter((e) => e.isEmoji).length).toBeGreaterThan(1800)
     expect(entries.filter((e) => !e.isEmoji).length).toBeGreaterThan(5000)
     expect(entries.every((e) => e.char && e.nameEn)).toBe(true)
+    expect(base.groups.slice(0, EMOJI_GROUPS)).toContain('Smileys & Emotion')
+    expect(entries.filter((e) => e.isEmoji).every((e) => e.group < EMOJI_GROUPS)).toBe(true)
+  })
+
+  it('has names for every UI language, aligned with the items', () => {
+    for (const l of [de, fr, es, it_] as UnicodeNames[]) {
+      expect(l.names).toHaveLength(base.items.length)
+      expect(l.keywords).toHaveLength(base.items.length)
+    }
+    const i = base.items.findIndex(([c]) => c === '😂')
+    expect((fr as UnicodeNames).keywords[i]).toMatch(/rire/)
+    expect((es as UnicodeNames).names[i]).toBeTruthy()
+    expect((it_ as UnicodeNames).names[i]).toBeTruthy()
   })
 
   it('offers skin tones for thumbs up', () => {
@@ -50,6 +68,13 @@ describe('search', () => {
 
   it('ranks whole-word name matches first', () => {
     expect(chars('rightwards arrow')[0]).toBe('→')
+  })
+
+  it('searches English plus the chosen language', () => {
+    const fromFr = prepare(base, fr as UnicodeNames)
+    expect(search(fromFr, 'rire', 50).map((e) => e.char)).toContain('😂')
+    expect(search(fromFr, 'laugh', 50).map((e) => e.char)).toContain('😂')
+    expect(search(prepare(base), 'lachen', 50).map((e) => e.char)).not.toContain('😂')
   })
 
   it('finds by code point', () => {

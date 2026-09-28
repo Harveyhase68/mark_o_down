@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { htmlToMarkdown } from '../src/md/htmlImport'
 import { importMarkdown, exportMarkdown } from '../src/md/document'
 import { renderHtmlPage } from '../src/md/html'
+import { _setLangForTests } from '../src/i18n'
+
+_setLangForTests('de') // the loss labels below are the German ones
 
 const labels = (html: string) => htmlToMarkdown(html).losses.map((l) => `${l.label} ×${l.count}`)
 

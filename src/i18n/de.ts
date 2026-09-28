@@ -94,6 +94,11 @@ export const de = {
   'raw.title': 'Markdown/HTML bearbeiten',
   'raw.source': 'Quelltext',
   'raw.tooltip': 'Markdown/HTML – Doppelklick zum Bearbeiten',
+  'block.raw': 'Markdown (unverändert übernommen)',
+  'block.table': 'Tabelle · Markdown',
+  'block.frontMatter': 'Front Matter',
+  'block.definition': 'Link-Definition',
+  'block.footnote': 'Fußnote',
 
   // ------------------------------------------------------------ find & replace
   'find.label': 'Suchen',

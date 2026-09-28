@@ -23,11 +23,12 @@ export const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in
 
 const MD_EXT = ['md', 'markdown', 'mdown', 'mkd', 'txt']
 const HTML_EXT = ['html', 'htm']
-const MD_FILTER = [{ name: 'Markdown', extensions: MD_EXT }]
-const OPEN_FILTER = [
-  { name: 'Markdown und HTML', extensions: [...MD_EXT, ...HTML_EXT] },
-  { name: 'Markdown', extensions: MD_EXT },
-  { name: 'HTML (wird nach Markdown umgewandelt)', extensions: HTML_EXT },
+// functions: the names follow the UI language
+const MD_FILTER = () => [{ name: t('dialog.markdown'), extensions: MD_EXT }]
+const OPEN_FILTER = () => [
+  { name: t('dialog.markdownAndHtml'), extensions: [...MD_EXT, ...HTML_EXT] },
+  { name: t('dialog.markdown'), extensions: MD_EXT },
+  { name: t('dialog.htmlImport'), extensions: HTML_EXT },
 ]
 
 /** Files the editor opens: Markdown directly, HTML via conversion. */
@@ -35,7 +36,7 @@ const extension = (p: string) => /\.([^.\\/]+)$/.exec(p)?.[1].toLowerCase() ?? '
 export const isMarkdownFile = (p: string) => MD_EXT.includes(extension(p))
 export const isHtmlFile = (p: string) => HTML_EXT.includes(extension(p))
 
-const IMG_FILTER = [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'bmp', 'ico'] }]
+const IMG_FILTER = () => [{ name: t('dialog.images'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'bmp', 'ico'] }]
 
 export async function readFile(path: string): Promise<MdFile> {
   try {
@@ -94,7 +95,7 @@ export async function fetchCached(url: string, maxAgeHours: number, force = fals
 /** The file on disk changed since it was loaded/saved (another program wrote it). */
 export class ExternalChangeError extends Error {
   constructor() {
-    super('Die Datei wurde außerhalb von Mark O Down geändert.')
+    super(t('guard.externalChange'))
   }
 }
 
@@ -161,18 +162,18 @@ export async function initialFile(): Promise<string | null> {
 
 export async function pickMarkdown(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
-  const p = await open({ multiple: false, directory: false, filters: OPEN_FILTER })
+  const p = await open({ multiple: false, directory: false, filters: OPEN_FILTER() })
   return typeof p === 'string' ? p : null
 }
 
 export async function pickSavePath(suggested: string | null): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog')
-  return save({ defaultPath: suggested ?? 'Unbenannt.md', filters: MD_FILTER })
+  return save({ defaultPath: suggested ?? t('doc.untitled'), filters: MD_FILTER() })
 }
 
 export async function pickImagePath(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
-  const p = await open({ multiple: false, directory: false, filters: IMG_FILTER })
+  const p = await open({ multiple: false, directory: false, filters: IMG_FILTER() })
   return typeof p === 'string' ? p : null
 }
 
@@ -276,7 +277,7 @@ export async function isElevated(): Promise<boolean> {
 
 export async function pickHtmlSavePath(suggested: string): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog')
-  return save({ defaultPath: suggested, filters: [{ name: 'HTML', extensions: ['html', 'htm'] }] })
+  return save({ defaultPath: suggested, filters: [{ name: t('dialog.html'), extensions: HTML_EXT }] })
 }
 
 export async function writeText(path: string, text: string): Promise<void> {
@@ -305,7 +306,7 @@ export async function copyHtml(html: string): Promise<void> {
   document.addEventListener('copy', onCopy, { capture: true, once: true })
   if (!document.execCommand('copy')) {
     document.removeEventListener('copy', onCopy, { capture: true })
-    throw new Error('Zwischenablage nicht verfügbar')
+    throw new Error(t('err.clipboard'))
   }
 }
 

@@ -12,9 +12,10 @@ import type { Element, Nodes as HNodes, Root as HRoot } from 'hast'
 import type { Nodes as MNodes, RootContent } from 'mdast'
 import { stringifyMarkdown } from './markdown'
 import { find, html as htmlSchema } from 'property-information'
+import { t, type MessageKey } from '../i18n'
 
 export interface HtmlLoss {
-  /** What is lost, e.g. "<span> – Formatierung" */
+  /** What is lost, e.g. "<span> – formatting is lost, text is kept" (in the UI language) */
   label: string
   count: number
 }
@@ -40,43 +41,43 @@ const KEPT: Record<string, string[]> = {
 }
 
 /** Removed together with their content. */
-const REMOVED: Record<string, string> = {
-  script: 'Skripte (<script>)',
-  style: 'Stylesheets (<style>)',
-  link: 'Verknüpfte Stylesheets/Ressourcen (<link>)',
-  svg: 'Vektorgrafiken (<svg>)',
-  canvas: 'Zeichenflächen (<canvas>)',
-  template: 'Vorlagen (<template>)',
-  embed: 'Eingebettete Objekte (<embed>/<object>)',
-  object: 'Eingebettete Objekte (<embed>/<object>)',
-  math: 'Formeln (<math>)',
-  caption: 'Tabellenbeschriftungen (<caption>)',
+const REMOVED: Record<string, MessageKey> = {
+  script: 'loss.script',
+  style: 'loss.style',
+  link: 'loss.link',
+  svg: 'loss.svg',
+  canvas: 'loss.canvas',
+  template: 'loss.template',
+  embed: 'loss.embed',
+  object: 'loss.embed',
+  math: 'loss.math',
+  caption: 'loss.caption',
 }
 
 /** Replaced by something simpler. */
-const REPLACED: Record<string, string> = {
-  iframe: 'Eingebettete Seiten (<iframe>) → nur Link',
-  video: 'Videos (<video>) → nur Link',
-  audio: 'Audio (<audio>) → nur Link',
-  u: 'Unterstreichung (<u>) → kursiv',
-  mark: 'Markierung (<mark>) → kursiv',
-  input: 'Formularfelder → Text (Checkboxen in Listen bleiben)',
-  select: 'Formularfelder → Text (Checkboxen in Listen bleiben)',
-  textarea: 'Formularfelder → Text (Checkboxen in Listen bleiben)',
-  button: 'Schaltflächen (<button>) → Text',
-  dl: 'Definitionslisten (<dl>) → normale Liste',
-  q: 'Zitate im Text (<q>) → Anführungszeichen',
-  sup: 'Hoch-/Tiefstellung (<sup>/<sub>) → normaler Text',
-  sub: 'Hoch-/Tiefstellung (<sup>/<sub>) → normaler Text',
-  details: 'Aufklappbereiche (<details>) → normaler Text',
-  summary: 'Aufklappbereiche (<details>) → normaler Text',
+const REPLACED: Record<string, MessageKey> = {
+  iframe: 'loss.iframe',
+  video: 'loss.video',
+  audio: 'loss.audio',
+  u: 'loss.u',
+  mark: 'loss.mark',
+  input: 'loss.form',
+  select: 'loss.form',
+  textarea: 'loss.form',
+  button: 'loss.button',
+  dl: 'loss.dl',
+  q: 'loss.q',
+  sup: 'loss.supsub',
+  sub: 'loss.supsub',
+  details: 'loss.details',
+  summary: 'loss.details',
 }
 
-const ATTRIBUTE_LABELS: Record<string, string> = {
-  style: 'Inline-Styles (style="…")',
-  class: 'CSS-Klassen (class="…")',
-  id: 'Sprungmarken/IDs (id="…")',
-  target: 'Link-Ziele (target="_blank" …) – Links öffnen normal',
+const ATTRIBUTE_LABELS: Record<string, MessageKey> = {
+  style: 'loss.attrStyle',
+  class: 'loss.attrClass',
+  id: 'loss.attrId',
+  target: 'loss.attrTarget',
 }
 
 /** hast property name → HTML attribute name (className → class, charSet → charset …). */
@@ -94,12 +95,12 @@ export function analyseHtml(tree: HRoot): HtmlLoss[] {
         for (const c of node.children) visit(c, inListItem)
         return
       }
-      if (REMOVED[tag]) return void add(REMOVED[tag]) // content is gone too
+      if (REMOVED[tag]) return void add(t(REMOVED[tag])) // content is gone too
       if (tag === 'input' && inListItem && node.properties.type === 'checkbox') {
         // task list checkbox: kept
-      } else if (REPLACED[tag]) add(REPLACED[tag])
-      else if (tag === 'div' && node.properties.align !== 'center') add('Layout-Container (<div>) – nur der Inhalt bleibt')
-      else if (!KEPT[tag]) add(`<${tag}> – Formatierung geht verloren, Text bleibt`)
+      } else if (REPLACED[tag]) add(t(REPLACED[tag]))
+      else if (tag === 'div' && node.properties.align !== 'center') add(t('loss.div'))
+      else if (!KEPT[tag]) add(t('loss.tag', { tag }))
 
       // embedded media become a link: their attributes are used, not lost
       if (tag === 'iframe' || tag === 'video' || tag === 'audio') return
@@ -108,13 +109,13 @@ export function analyseHtml(tree: HRoot): HtmlLoss[] {
         if (value === undefined || value === null || value === false) continue
         const name = attrName(prop)
         if (allowed.includes(name) || (tag === 'input' && ['type', 'checked', 'disabled'].includes(name))) continue
-        add(ATTRIBUTE_LABELS[name] ?? `Attribute (${name}=…)`)
+        add(ATTRIBUTE_LABELS[name] ? t(ATTRIBUTE_LABELS[name]) : t('loss.attr', { name }))
       }
       for (const c of node.children) visit(c, inListItem || tag === 'li')
     } else if (node.type === 'root') {
       for (const c of node.children) visit(c, inListItem)
     } else if (node.type === 'comment') {
-      add('Kommentare (<!-- … -->)')
+      add(t('loss.comment'))
     }
   }
   visit(tree, false)

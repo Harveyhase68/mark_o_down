@@ -7,6 +7,7 @@
 import * as host from './platform'
 import { askChoice } from './editor/dialog'
 import { modalOpen } from './editor/modal'
+import { locale, t } from './i18n'
 
 export interface GuardedDoc {
   path: string | null
@@ -53,7 +54,7 @@ export function createGuard(deps: GuardDeps) {
 
       if (hash === null) {
         acknowledged = null
-        deps.flash('Die Datei wurde gelöscht oder verschoben – „Speichern“ legt sie neu an')
+        deps.flash(t('guard.deleted'))
         current.diskHash = null
         deps.markChanged()
         return
@@ -61,17 +62,15 @@ export function createGuard(deps: GuardDeps) {
       if (!deps.isDirty()) {
         // nothing of ours to lose: take the new version silently (like VS Code)
         await deps.reload()
-        deps.flash('Die Datei wurde außerhalb geändert – neu geladen')
+        deps.flash(t('guard.reloaded'))
         return
       }
       const choice = await askChoice(
-        `„${host.basename(doc.path)}“ wurde außerhalb geändert`,
-        'Ein anderes Programm hat die Datei geändert, während sie hier ungespeicherte Änderungen hat.\n\n' +
-          '„Neu laden“ übernimmt die Version von der Festplatte – deine Änderungen hier gehen verloren.\n' +
-          '„Meine Version behalten“ lässt die Datei unangetastet; beim Speichern wird erneut gefragt.',
+        t('guard.changedTitle', { name: host.basename(doc.path) }),
+        t('guard.changedText'),
         [
-          { label: 'Neu laden', value: 'reload', danger: true },
-          { label: 'Meine Version behalten', value: 'keep', primary: true },
+          { label: t('guard.reload'), value: 'reload', danger: true },
+          { label: t('guard.keepMine'), value: 'keep', primary: true },
         ],
       )
       if (choice === 'reload') await deps.reload()
@@ -94,14 +93,12 @@ export function createGuard(deps: GuardDeps) {
   /** Save refused because the file changed on disk: what now? */
   async function askOverwrite(name: string): Promise<'overwrite' | 'saveAs' | 'cancel'> {
     const choice = await askChoice(
-      `„${name}“ wurde inzwischen außerhalb geändert`,
-      'Die Datei auf der Festplatte ist nicht mehr die, die du geöffnet hast (z. B. git pull oder ein anderer Editor).\n\n' +
-        '„Überschreiben“ ersetzt diese fremden Änderungen durch deine Version.\n' +
-        '„Speichern unter…“ lässt beide Versionen bestehen.',
+      t('guard.conflictTitle', { name }),
+      t('guard.conflictText'),
       [
-        { label: 'Überschreiben', value: 'overwrite', danger: true },
-        { label: 'Abbrechen', value: 'cancel' },
-        { label: 'Speichern unter…', value: 'saveAs', primary: true },
+        { label: t('guard.overwrite'), value: 'overwrite', danger: true },
+        { label: t('common.cancel'), value: 'cancel' },
+        { label: t('common.saveAs'), value: 'saveAs', primary: true },
       ],
     )
     return choice as 'overwrite' | 'saveAs' | 'cancel'
@@ -133,16 +130,15 @@ export function createGuard(deps: GuardDeps) {
   /** At startup: offer copies left behind by a crash. */
   async function offerRecovery() {
     for (const { id, data } of await host.recoveryOrphans().catch(() => [])) {
-      const name = data.path ? host.basename(data.path) : 'Unbenannt.md'
-      const when = new Date(data.savedAt).toLocaleString('de-AT', { dateStyle: 'medium', timeStyle: 'short' })
+      const name = data.path ? host.basename(data.path) : t('doc.untitled')
+      const when = new Date(data.savedAt).toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' })
       const choice = await askChoice(
-        'Ungespeicherte Änderungen wiederherstellen?',
-        `Mark O Down wurde nicht ordnungsgemäß beendet. Von „${name}“ gibt es ungespeicherte Änderungen (Stand ${when}).\n\n` +
-          '„Wiederherstellen“ öffnet sie – die Datei selbst wird erst beim Speichern geändert.',
+        t('guard.recoverTitle'),
+        t('guard.recoverText', { name, when }),
         [
-          { label: 'Verwerfen', value: 'discard', danger: true },
-          { label: 'Später', value: 'cancel' },
-          { label: 'Wiederherstellen', value: 'restore', primary: true },
+          { label: t('common.discard'), value: 'discard', danger: true },
+          { label: t('common.later'), value: 'cancel' },
+          { label: t('guard.restore'), value: 'restore', primary: true },
         ],
       )
       if (choice === 'cancel') continue // keep it for the next start

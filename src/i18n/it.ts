@@ -88,6 +88,11 @@ export const it: Messages = {
   'raw.title': 'Modifica Markdown/HTML',
   'raw.source': 'Sorgente',
   'raw.tooltip': 'Markdown/HTML – doppio clic per modificare',
+  'block.raw': 'Markdown (mantenuto invariato)',
+  'block.table': 'Tabella · Markdown',
+  'block.frontMatter': 'Front matter',
+  'block.definition': 'Definizione di link',
+  'block.footnote': 'Nota a piè di pagina',
 
   'find.label': 'Trova',
   'find.replaceLabel': 'Sostituisci con',

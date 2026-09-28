@@ -4,6 +4,7 @@ import { fillTemplate, loadIcons, searchIcons, type IconEntry } from '../config'
 import type { TabContext } from '../picker'
 import * as host from '../../platform'
 import { el, field, textInput } from '../../editor/dom'
+import { t } from '../../i18n'
 
 const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
@@ -22,22 +23,22 @@ const state = {
 
 export function renderIconsTab(pane: HTMLElement, ctx: TabContext) {
   const set0 = ctx.config.iconSets[0]
-  if (!set0) return void pane.append(el('p', { class: 'pk-empty' }, 'Kein Icon-Set konfiguriert.'))
+  if (!set0) return void pane.append(el('p', { class: 'pk-empty' }, t('picker.noIconSet')))
 
-  const search = textInput(state.query, `${set0.name} durchsuchen … (z. B. rust, github, docker)`)
-  const status = el('span', { class: 'pk-status' }, 'Lade Icon-Liste …')
-  const reload = el('button', { type: 'button', class: 'pk-link-btn', title: 'Icon-Liste neu herunterladen' }, '↻ aktualisieren')
+  const search = textInput(state.query, t('picker.iconSearch', { set: set0.name }))
+  const status = el('span', { class: 'pk-status' }, t('picker.iconsLoading'))
+  const reload = el('button', { type: 'button', class: 'pk-link-btn', title: t('picker.iconsReloadTip') }, t('picker.iconsReload'))
   const grid = el('div', { class: 'pk-grid' })
 
   const mode = el('select')
-  mode.append(el('option', { value: 'icon' }, 'Icon (Bild)'), el('option', { value: 'badge' }, 'Badge mit Logo (shields.io)'))
+  mode.append(el('option', { value: 'icon' }, t('picker.asIcon')), el('option', { value: 'badge' }, t('picker.asBadge')))
   mode.value = state.mode
-  const size = textInput(state.size, 'leer = Originalgröße')
-  const color = textInput(state.color, 'Markenfarbe')
+  const size = textInput(state.size, t('picker.sizePlaceholder'))
+  const color = textInput(state.color, t('picker.colorPlaceholder'))
   const style = el('select')
   for (const s of STYLES) style.append(el('option', { value: s }, s))
   style.value = state.style
-  const options = el('div', { class: 'pk-form pk-inline' }, field('Einfügen als', mode), field('Größe (px)', size), field('Farbe', color), field('Badge-Stil', style))
+  const options = el('div', { class: 'pk-form pk-inline' }, field(t('picker.insertAs'), mode), field(t('picker.size'), size), field(t('picker.color'), color), field(t('picker.badgeStyle'), style))
 
   const syncDisabled = () => {
     size.disabled = state.mode === 'badge'
@@ -67,7 +68,7 @@ export function renderIconsTab(pane: HTMLElement, ctx: TabContext) {
   const draw = () => {
     grid.replaceChildren()
     const hits = searchIcons(all, state.query, MAX_HITS)
-    status.textContent = `${all.length} Icons · ${state.query ? `${hits.length}${hits.length === MAX_HITS ? '+' : ''} Treffer` : 'Suchbegriff eingeben'}`
+    status.textContent = `${t('picker.iconsCount', { n: all.length })} · ${state.query ? t('picker.iconsHits', { n: `${hits.length}${hits.length === MAX_HITS ? '+' : ''}` }) : t('picker.iconsTypeToSearch')}`
     for (const icon of hits) {
       const b = el(
         'button',
@@ -77,7 +78,7 @@ export function renderIconsTab(pane: HTMLElement, ctx: TabContext) {
       )
       b.onclick = () => {
         state.selected = icon
-        for (const t of grid.children) t.setAttribute('aria-pressed', String(t === b))
+        for (const tile of grid.children) tile.setAttribute('aria-pressed', String(tile === b))
         apply()
       }
       grid.append(b)
@@ -93,9 +94,9 @@ export function renderIconsTab(pane: HTMLElement, ctx: TabContext) {
         all = list
         draw()
       })
-      .catch((e) => (status.textContent = `Icon-Liste nicht verfügbar: ${e}`))
+      .catch((e) => (status.textContent = t('picker.iconsUnavailable', { error: String(e) })))
   reload.onclick = () => {
-    status.textContent = 'Lade Icon-Liste …'
+    status.textContent = t('picker.iconsLoading')
     void load(true)
   }
   const home = el('a', { href: set0.home, class: 'pk-home' }, set0.home.replace(/^https?:\/\//, ''))

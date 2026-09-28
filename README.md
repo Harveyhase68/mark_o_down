@@ -48,8 +48,8 @@ clean Markdown.
 - **Badge & icon picker** – [shields.io](https://shields.io), [badgen.net](https://badgen.net),
   [forthebadge.com](https://forthebadge.com), all [Simple Icons](https://simpleicons.org), your own images.
   Sources and templates are configurable (`badges.json`), icon lists are cached for offline use.
-- **Emoji & symbol picker** – every Unicode emoji and ~9,700 symbols with English and German names
-  and keywords. Search matches inside words (`ross` → 😵 *face with crossed-out eyes*). Skin tones,
+- **Emoji & symbol picker** – every Unicode emoji and ~9,700 symbols with names and keywords in
+  English plus the UI language. Search matches inside words (`ross` → 😵 *face with crossed-out eyes*). Skin tones,
   recently used, full 4-byte Unicode support.
 - **Images like on GitHub** – relative paths resolve from the document's folder, `/path` from the
   repository root. Drag & drop images and `.md` files into the window.
@@ -58,6 +58,10 @@ clean Markdown.
   unsaved work is recovered after a crash, recently opened files in the Open menu.
 - **Open HTML** – converted to Markdown; a dialog lists exactly what Markdown can't keep.
 - **Export** – standalone HTML file, HTML to the clipboard, print. Document zoom 50–300 %.
+- **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document (`images/`)
+  and inserts it; a pasted URL becomes a link, an image URL an image.
+- **Five languages** – German, English, French, Spanish and Italian; follows the Windows language,
+  switchable any time under *Help → Language*.
 - Markdown shortcuts while typing (`# `, `- `, `1. `, `> `, `**bold**`, `[text](url)` …).
 
 ## Download
@@ -142,6 +146,28 @@ The test suite round-trips its fixtures and all README files in `node_modules` b
 checks that full re-serialization renders identical HTML.
 
 ## Changelog
+
+### Unreleased
+
+**New**
+
+- **Paste images and links** (`Ctrl+V`): a copied image (screenshot, image from a browser …) is
+  saved as an image file in an `images` folder next to the document and inserted with a relative
+  path – an unsaved document is saved first. A pasted URL turns the selected text into a link (or is
+  inserted as a link), a URL pointing to an image becomes an image.
+- **User interface in five languages**: German, English, French, Spanish and Italian. The language
+  follows Windows and can be changed under *Help → Language* without restarting. Everything is
+  translated – toolbar, menus, dialogs, find bar, status bar, keyboard shortcut names
+  (`Strg`/`Ctrl`/`Maj` …), the HTML import report, badge templates and file dialogs.
+- **Emoji search in your language**: names and keywords from CLDR for all five languages
+  (English always included), e.g. `rire`, `risa` or `ridere` find 😂.
+
+**Changed**
+
+- `badges.json` is only created when you save your own sources; until then the built-in templates
+  follow the UI language. A file that still contains the unchanged defaults of an older version is
+  treated the same way.
+- The installer is available in English, German, French, Spanish and Italian.
 
 ### 0.2.0 – 2026-09-28
 

@@ -62,6 +62,9 @@ export function t(key: MessageKey, params?: Record<string, string | number>): st
   return params ? text.replace(/\{(\w+)\}/g, (m, p: string) => (p in params ? String(params[p]) : m)) : text
 }
 
+/** Text in a given language (not the current one), without placeholders. */
+export const tIn = (l: Lang, key: MessageKey): string => DICTIONARIES[l][key] ?? de[key] ?? key
+
 /** "Ctrl+Shift+S" in the words of the current language ("Strg+Umschalt+S", "Ctrl+Maj+S" …). */
 export function kbd(combo: string): string {
   const words: Record<string, MessageKey> = { Ctrl: 'key.ctrl', Shift: 'key.shift', Alt: 'key.alt', Enter: 'key.enter', Esc: 'key.esc', Tab: 'key.tab' }

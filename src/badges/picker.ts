@@ -2,16 +2,16 @@
 // (Simple Icons), the user's own images next to the document, or any URL.
 // This file is the frame (tabs, preview, footer); each tab lives in ./tabs/.
 
-import { CONFIG_FILE, DEFAULT_CONFIG, configText, loadConfig, type PickerConfig } from './config'
+import { CONFIG_FILE, defaultConfig, loadConfig, readConfigText, type PickerConfig } from './config'
 import { editConfig } from './configEditor'
 import { renderBadgesTab } from './tabs/badges'
 import { renderIconsTab } from './tabs/icons'
 import { renderFilesTab } from './tabs/files'
 import { renderUrlTab } from './tabs/url'
-import * as host from '../platform'
 import { setTagAttr } from '../md/htmlTags'
 import { el, field, textInput } from '../editor/dom'
 import { openModal } from '../editor/modal'
+import { t, type MessageKey } from '../i18n'
 
 export interface PickedImage {
   src: string
@@ -43,11 +43,11 @@ export interface TabContext {
   set(p: Partial<PickedImage>): void
 }
 
-const TABS: [PickerTab, string, (pane: HTMLElement, ctx: TabContext) => void][] = [
-  ['badges', 'Badges', renderBadgesTab],
-  ['icons', 'Icons', renderIconsTab],
-  ['files', 'Eigene Bilder', renderFilesTab],
-  ['url', 'URL', renderUrlTab],
+const TABS: [PickerTab, MessageKey, (pane: HTMLElement, ctx: TabContext) => void][] = [
+  ['badges', 'picker.tabBadges', renderBadgesTab],
+  ['icons', 'picker.tabIcons', renderIconsTab],
+  ['files', 'picker.tabFiles', renderFilesTab],
+  ['url', 'picker.tabUrl', renderUrlTab],
 ]
 
 let lastTab: PickerTab = 'badges'
@@ -68,17 +68,17 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
     // ---------------------------------------------------------------- frame
     const box = el('div', { class: 'picker' })
     const tabBar = el('nav', { class: 'pk-tabs', role: 'tablist' })
-    const cfgBtn = el('button', { type: 'button', class: 'pk-link-btn', title: `${CONFIG_FILE} bearbeiten` }, '⚙ Konfiguration…')
+    const cfgBtn = el('button', { type: 'button', class: 'pk-link-btn', title: t('picker.configTip', { file: CONFIG_FILE }) }, t('picker.config'))
     const body = el('div', { class: 'pk-body' })
     const notice = el('div', { class: 'pk-notice', hidden: '' })
 
     const previewImg = el('img', { alt: '' })
-    const previewBox = el('div', { class: 'pk-preview' }, previewImg)
-    const altIn = textInput('', 'Beschreibung des Bildes')
-    const linkIn = textInput('', 'https://… (optional)')
+    const previewBox = el('div', { class: 'pk-preview', 'data-missing': t('picker.previewMissing') }, previewImg)
+    const altIn = textInput('', t('picker.altPlaceholder'))
+    const linkIn = textInput('', t('picker.linkPlaceholder'))
     const code = el('code', { class: 'pk-code' })
-    const cancel = el('button', { type: 'button' }, 'Abbrechen')
-    const ok = el('button', { type: 'button', class: 'primary' }, 'Einfügen')
+    const cancel = el('button', { type: 'button' }, t('common.cancel'))
+    const ok = el('button', { type: 'button', class: 'primary' }, t('common.insert'))
     box.append(
       el('header', {}, tabBar, cfgBtn),
       notice,
@@ -87,7 +87,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
         'footer',
         {},
         previewBox,
-        el('div', { class: 'pk-meta' }, field('Alternativtext', altIn), field('Link (klickbar)', linkIn), code),
+        el('div', { class: 'pk-meta' }, field(t('picker.alt'), altIn), field(t('picker.link'), linkIn), code),
         el('div', { class: 'buttons' }, cancel, ok),
       ),
     )
@@ -95,7 +95,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
     // ---------------------------------------------------------------- selection + preview
     let previewTimer = 0
     const ctx: TabContext = {
-      config: DEFAULT_CONFIG,
+      config: defaultConfig(),
       opts,
       current: cur,
       set(p) {
@@ -131,7 +131,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
     const panes = new Map<PickerTab, HTMLElement>()
     const tabButtons = new Map<PickerTab, HTMLButtonElement>()
     for (const [id, label] of TABS) {
-      const b = el('button', { type: 'button', role: 'tab' }, label)
+      const b = el('button', { type: 'button', role: 'tab' }, t(label))
       b.onclick = () => show(id)
       tabBar.append(b)
       tabButtons.set(id, b)
@@ -147,7 +147,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
       const pane = panes.get(id)!
       const hadFocus = pane.contains(document.activeElement)
       pane.replaceChildren()
-      TABS.find(([t]) => t === id)![2](pane, ctx)
+      TABS.find(([tab]) => tab === id)![2](pane, ctx)
       // redrawing removed the focused field: don't leave the keyboard user nowhere
       if (hadFocus || !box.contains(document.activeElement)) {
         ;(pane.querySelector<HTMLElement>('input, select, button') ?? tabButtons.get(id))?.focus()
@@ -160,8 +160,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
     }
 
     cfgBtn.onclick = async () => {
-      const text = (await host.configRead(CONFIG_FILE).catch(() => null)) ?? configText(ctx.config)
-      const edited = await editConfig(text)
+      const edited = await editConfig(await readConfigText())
       if (edited) {
         ctx.config = edited
         show(lastTab)
@@ -186,7 +185,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
     })
     cancel.onclick = () => close(null)
     ok.onclick = insert
-    const modal = openModal(box, { label: 'Bild, Badge oder Icon einfügen', onCancel: () => close(null) })
+    const modal = openModal(box, { label: t('picker.label'), onCancel: () => close(null) })
 
     altIn.value = cur.alt
     linkIn.value = cur.link ?? ''

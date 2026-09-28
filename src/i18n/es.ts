@@ -88,6 +88,11 @@ export const es: Messages = {
   'raw.title': 'Editar Markdown/HTML',
   'raw.source': 'Código',
   'raw.tooltip': 'Markdown/HTML – doble clic para editar',
+  'block.raw': 'Markdown (se conserva tal cual)',
+  'block.table': 'Tabla · Markdown',
+  'block.frontMatter': 'Front matter',
+  'block.definition': 'Definición de enlace',
+  'block.footnote': 'Nota al pie',
 
   'find.label': 'Buscar',
   'find.replaceLabel': 'Reemplazar por',

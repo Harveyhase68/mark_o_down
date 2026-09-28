@@ -17,6 +17,7 @@ import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
 import { createGuard } from './guard'
 import { Selection } from 'prosemirror-state'
+import { getLang, kbd, onLangChange, t, type MessageKey } from './i18n'
 
 // ------------------------------------------------------------------ state
 
@@ -99,7 +100,10 @@ const guard = createGuard({
 
 const editor = createEditor(editorEl, hooks)
 const view = editor.view
-const toolbar = createToolbar($('#toolbar'), view, {
+let toolbar = createToolbar($('#toolbar'), view, toolbarActions())
+
+function toolbarActions(): Parameters<typeof createToolbar>[2] {
+  return {
   open: () => void openFile(),
   openMenu: () => openMenuItems(),
   save: () => void saveFile(false),
@@ -116,16 +120,17 @@ const toolbar = createToolbar($('#toolbar'), view, {
   find: () => findBar.open(false),
   toggleSource,
   sourceVisible: () => sourceVisible,
-})
+  }
+}
 const findBar = createFindBar($('#workspace'), view)
 // Ctrl+wheel, Ctrl+Plus/Minus/0 and the "− 100 % +" control in the status bar
-setupZoom(editorEl, $('#scroller'), $('#zoom'))
+const zoom = setupZoom(editorEl, $('#scroller'), $('#zoom'))
 
 // ------------------------------------------------------------------ UI updates
 
 const isDirty = () => doc.saved === null || !view.state.doc.eq(doc.saved)
 const markdown = () => exportMarkdown(view.state.doc, doc.meta)
-const docName = () => host.basename(doc.path ?? doc.suggested ?? 'Unbenannt.md')
+const docName = () => host.basename(doc.path ?? doc.suggested ?? t('doc.untitled'))
 const withoutExt = (name: string) => name.replace(/\.[^.\\/]+$/, '')
 
 let updateQueued = false
@@ -146,11 +151,16 @@ function updateChrome() {
 
   const text = view.state.doc.textContent
   const words = (text.match(/[\p{L}\p{N}]+/gu) ?? []).length
-  const parts = [doc.path ?? (doc.suggested ? `Neu (noch nicht gespeichert): ${doc.suggested}` : 'Neues Dokument'), `${words} Wörter`, doc.eol.toUpperCase(), doc.bom ? 'UTF-8 mit BOM' : 'UTF-8']
-  if (doc.mixedEol) parts.push('⚠ gemischte Zeilenenden – werden beim Speichern vereinheitlicht')
-  if (elevatedWarning) parts.unshift('⚠ Als Administrator gestartet – Windows blockiert Drag & Drop aus dem Explorer; App ohne Admin-Rechte starten')
+  const parts = [
+    doc.path ?? (doc.suggested ? t('doc.newFrom', { path: doc.suggested }) : t('doc.new')),
+    t('status.words', { n: words }),
+    doc.eol.toUpperCase(),
+    doc.bom ? t('status.bom') : 'UTF-8',
+  ]
+  if (doc.mixedEol) parts.push(t('status.mixedEol'))
+  if (elevatedWarning) parts.unshift(t('status.elevated'))
   // Opened in a plain browser (e.g. the dev server URL): no real file access
-  if (!host.isTauri) parts.unshift('⚠ Browser-Vorschau – Speichern = Download, kein Drag & Drop; für volle Funktion die App starten')
+  if (!host.isTauri) parts.unshift(t('status.browser'))
   if (flashMessage) parts.unshift(`✓ ${flashMessage}`)
   statusEl.textContent = parts.join('   ·   ')
 
@@ -226,7 +236,7 @@ async function openPath(path: string) {
     setDocument(f.text, f)
     void rememberRecent(f.path)
   } catch (e) {
-    await host.showError(`Datei konnte nicht geöffnet werden:\n${e}`)
+    await host.showError(t('err.open', { error: String(e) }))
   }
 }
 
@@ -243,17 +253,14 @@ async function importHtml(f: host.MdFile) {
       .slice(0, MAX)
       .map((l) => `•  ${l.label}${l.count > 1 ? `  (${l.count}×)` : ''}`)
       .join('\n')
-    const more = result.losses.length > MAX ? `\n•  … und ${result.losses.length - MAX} weitere` : ''
+    const more = result.losses.length > MAX ? `\n•  ${t('import.more', { n: result.losses.length - MAX })}` : ''
     const choice = await exclusive(() =>
       askChoice(
-        `„${name}“ als Markdown importieren?`,
-        `Markdown kann nicht alles darstellen, was HTML kann. Beim Import geht verloren:\n\n${list}${more}\n\n` +
-          'Erhalten bleiben Überschriften, Absätze, fett/kursiv, Links, Bilder, Listen, Tabellen, Code und Zitate – ' +
-          'sowie <div align="center">, <br> und <img> mit Größenangabe.\n\n' +
-          'Es entsteht ein neues Markdown-Dokument, die HTML-Datei bleibt unverändert.',
+        t('import.title', { name }),
+        `${t('import.intro')}\n\n${list}${more}\n\n${t('import.kept')}\n\n${t('import.newDoc')}`,
         [
-          { label: 'Abbrechen', value: 'cancel' },
-          { label: 'Importieren', value: 'import', primary: true },
+          { label: t('common.cancel'), value: 'cancel' },
+          { label: t('import.button'), value: 'import', primary: true },
         ],
       ),
     )
@@ -263,7 +270,7 @@ async function importHtml(f: host.MdFile) {
   void rememberRecent(f.path)
   doc.saved = null // a new document: not saved yet
   updateChrome()
-  flash(`„${name}“ als Markdown importiert – „Speichern“ legt ${withoutExt(name)}.md an`)
+  flash(t('import.done', { name, md: `${withoutExt(name)}.md` }))
 }
 
 /** Re-read the current file (changed by another program), keeping cursor and scroll position. */
@@ -331,7 +338,7 @@ function saveFile(saveAs: boolean): Promise<boolean> {
       updateChrome()
       return true
     } catch (e) {
-      await host.showError(`Speichern fehlgeschlagen:\n${e}`)
+      await host.showError(t('err.save', { error: String(e) }))
       return false
     }
   })
@@ -348,16 +355,16 @@ async function closeDocument() {
 const PASTE_FOLDER = 'images'
 
 async function pasteImage(v: EditorView, image: File) {
-  if (!host.isTauri) return flash('Bilder einfügen geht nur in der App (nicht in der Browser-Vorschau)')
+  if (!host.isTauri) return flash(t('paste.browser'))
   // the image is stored next to the document – so the document needs a place first
   if (!doc.path) {
     const choice = await exclusive(() =>
       askChoice(
-        'Bild einfügen',
-        `Das Bild wird als Datei neben dem Dokument gespeichert (Ordner „${PASTE_FOLDER}“). ` + 'Dafür muss das Dokument zuerst gespeichert werden.',
+        t('paste.title'),
+        t('paste.needSave', { folder: PASTE_FOLDER }),
         [
-          { label: 'Abbrechen', value: 'cancel' },
-          { label: 'Speichern…', value: 'save', primary: true },
+          { label: t('common.cancel'), value: 'cancel' },
+          { label: t('common.saveAs'), value: 'save', primary: true },
         ],
       ),
     )
@@ -369,9 +376,9 @@ async function pasteImage(v: EditorView, image: File) {
     const node = v.state.schema.nodes.image.create({ src: host.encodePath(rel), alt: '' })
     v.dispatch(v.state.tr.replaceSelectionWith(node, false).scrollIntoView())
     v.focus()
-    flash(`Bild gespeichert: ${rel}`)
+    flash(t('paste.saved', { path: rel }))
   } catch (e) {
-    await host.showError(`Bild konnte nicht gespeichert werden:\n${e}`)
+    await host.showError(t('err.imageSave', { error: String(e) }))
   }
 }
 
@@ -388,14 +395,14 @@ async function rememberRecent(path: string) {
 }
 
 function openMenuItems(): MenuItem[] {
-  const items: MenuItem[] = [{ label: 'Öffnen…', shortcut: 'Strg+O', run: () => void openFile() }]
+  const items: MenuItem[] = [{ label: t('menu.open'), shortcut: kbd('Ctrl+O'), run: () => void openFile() }]
   if (!host.isTauri) return items
   items.push('separator')
-  if (!recentCache.length) items.push({ label: 'Keine zuletzt geöffneten Dateien', disabled: true, run: () => {} })
+  if (!recentCache.length) items.push({ label: t('menu.recentEmpty'), disabled: true, run: () => {} })
   for (const p of recentCache) items.push({ label: host.basename(p), shortcut: shortDir(p), title: p, run: () => void openRecent(p) })
   if (recentCache.length) {
     items.push('separator', {
-      label: 'Liste leeren',
+      label: t('menu.recentClear'),
       run: () => void clearRecent().then(() => (recentCache = [])),
     })
   }
@@ -407,7 +414,7 @@ async function openRecent(path: string) {
   if ((await host.fileHash(path)) === null) {
     await removeRecent(path)
     recentCache = await recentFiles()
-    await host.showError(`„${host.basename(path)}“ wurde nicht gefunden – vielleicht verschoben oder gelöscht:\n\n${path}\n\nDer Eintrag wurde aus der Liste entfernt.`)
+    await host.showError(t('err.notFound', { name: host.basename(path), path }))
     return
   }
   await openPath(path)
@@ -418,24 +425,24 @@ async function openRecent(path: string) {
 const htmlTitle = () => documentTitle(markdown(), withoutExt(docName()))
 
 async function exportHtml() {
-  const page = renderHtmlPage(markdown(), htmlTitle())
+  const page = renderHtmlPage(markdown(), htmlTitle(), getLang())
   if (!host.isTauri) return download(page, `${withoutExt(docName())}.html`, 'text/html')
   const path = await host.pickHtmlSavePath(`${withoutExt(doc.path ?? docName())}.html`)
   if (!path) return
   try {
     await host.writeText(path, page)
-    flash(`HTML exportiert: ${path}`)
+    flash(t('flash.htmlExported', { path }))
   } catch (e) {
-    await host.showError(`HTML-Export fehlgeschlagen:\n${e}`)
+    await host.showError(t('err.htmlExport', { error: String(e) }))
   }
 }
 
 async function copyHtml() {
   try {
     await host.copyHtml(renderHtml(markdown()))
-    flash('HTML in die Zwischenablage kopiert')
+    flash(t('flash.htmlCopied'))
   } catch (e) {
-    await host.showError(`Kopieren fehlgeschlagen:\n${e}`)
+    await host.showError(t('err.copy', { error: String(e) }))
   }
 }
 
@@ -555,8 +562,39 @@ async function setupWindow(view: EditorView) {
   })
 }
 
+// ------------------------------------------------------------------ language
+
+/** Texts that live in index.html. */
+function applyStaticTexts() {
+  document.documentElement.lang = getLang()
+  $('#toolbar').setAttribute('aria-label', t('toolbar.label'))
+  $('#source-pane').setAttribute('aria-label', t('source.title'))
+  $('#source-pane .pane-title').textContent = t('source.title')
+  $('#zoom').setAttribute('aria-label', t('zoom.label'))
+  // labels of raw blocks (CSS ::before)
+  const labels: [string, MessageKey][] = [
+    ['raw', 'block.raw'],
+    ['table', 'block.table'],
+    ['front-matter', 'block.frontMatter'],
+    ['definition', 'block.definition'],
+    ['footnote', 'block.footnote'],
+  ]
+  for (const [name, key] of labels) document.documentElement.style.setProperty(`--lbl-${name}`, JSON.stringify(t(key)))
+}
+
+onLangChange(() => {
+  toolbar = createToolbar($('#toolbar'), view, toolbarActions())
+  toolbar.update()
+  findBar.relabel()
+  zoom.relabel()
+  applyStaticTexts()
+  lastTitle = ''
+  updateChrome()
+})
+
 // ------------------------------------------------------------------ start
 
+applyStaticTexts()
 setDocument('', { path: null })
 void setupWindow(view)
 // reveal the page (and the window, which Tauri creates hidden) once the editor is painted

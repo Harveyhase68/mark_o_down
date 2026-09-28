@@ -1,21 +1,31 @@
-// Emoji & symbol search over names and keywords (English + German).
+// Emoji & symbol search over names and keywords (English + the UI language).
 // Matches anywhere, also inside words ("ross" → "face with crossed-out eyes");
 // several words must all match ("face with" → "face with medical mask" …).
 
 export interface UnicodeData {
   version: { emoji: string; unicode: string; cldr: string; built: string }
+  /** the EMOJI_GROUPS emoji groups, then the Unicode blocks of the symbols (English) */
   groups: string[]
-  /** [char, groupIndex, name en, name de, keywords en "a|b", keywords de "a|b"] */
-  items: [string, number, string, string, string, string][]
+  /** [char, groupIndex, name en, keywords en "a|b"] */
+  items: [string, number, string, string][]
   /** base emoji → its five skin-tone variants */
   tones: Record<string, string[]>
+}
+
+/** Names and keywords in one more language, in the order of `UnicodeData.items`. */
+export interface UnicodeNames {
+  lang: string
+  names: string[]
+  /** "a|b" */
+  keywords: string[]
 }
 
 export interface Entry {
   char: string
   group: number
   nameEn: string
-  nameDe: string
+  /** name in the UI language ('' for English or when CLDR has none) */
+  name: string
   keywords: string[]
   isEmoji: boolean
   /** original order (CLDR order for emoji, code point order for symbols) */
@@ -26,18 +36,20 @@ export interface Entry {
 
 export const EMOJI_GROUPS = 9
 
-export function prepare(data: UnicodeData): Entry[] {
-  return data.items.map(([char, group, nameEn, nameDe, kwEn, kwDe], order) => {
-    const keywords = [...new Set([...kwEn.split('|'), ...kwDe.split('|')].filter(Boolean))]
+export function prepare(data: UnicodeData, local?: UnicodeNames): Entry[] {
+  return data.items.map(([char, group, nameEn, kwEn], order) => {
+    const name = local?.names[order] ?? ''
+    const kwLocal = local?.keywords[order] ?? ''
+    const keywords = [...new Set([...kwEn.split('|'), ...kwLocal.split('|')].filter(Boolean))]
     return {
       char,
       group,
       nameEn,
-      nameDe,
+      name,
       keywords,
-      isEmoji: !data.groups[group].startsWith('Zeichen: '),
+      isEmoji: group < EMOJI_GROUPS,
       order,
-      names: `${nameEn}|${nameDe}`.toLowerCase(),
+      names: `${nameEn}|${name}`.toLowerCase(),
       keys: `|${keywords.join('|')}|`.toLowerCase(),
     }
   })

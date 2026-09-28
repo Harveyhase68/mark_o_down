@@ -494,11 +494,11 @@ body.show-source #source-pane {
   left: 10px;
   color: var(--muted);
   font: 11px var(--font);
-  content: 'Markdown (unverändert übernommen)';
+  content: var(--lbl-raw);
 }
 
 .md-editor pre.raw-block[data-raw='table']::before {
-  content: 'Tabelle · Markdown';
+  content: var(--lbl-table);
 }
 
 .md-editor pre.raw-block[data-raw='html']::before {
@@ -507,15 +507,15 @@ body.show-source #source-pane {
 
 .md-editor pre.raw-block[data-raw='yaml']::before,
 .md-editor pre.raw-block[data-raw='toml']::before {
-  content: 'Front Matter';
+  content: var(--lbl-front-matter);
 }
 
 .md-editor pre.raw-block[data-raw='definition']::before {
-  content: 'Link-Definition';
+  content: var(--lbl-definition);
 }
 
 .md-editor pre.raw-block[data-raw='footnoteDefinition']::before {
-  content: 'Fußnote';
+  content: var(--lbl-footnote);
 }
 
 .md-editor .raw-inline {
@@ -995,7 +995,7 @@ body.show-source #source-pane {
 }
 
 .pk-preview.broken::after {
-  content: 'Vorschau nicht verfügbar';
+  content: attr(data-missing);
   color: var(--muted);
   font-size: 12px;
 }

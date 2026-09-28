@@ -1,8 +1,9 @@
-// "Eigene Bilder" tab: images in the document's folder (and below), or any file.
+// "Own images" tab: images in the document's folder (and below), or any file.
 
 import type { TabContext } from '../picker'
 import * as host from '../../platform'
 import { el, textInput } from '../../editor/dom'
+import { t } from '../../i18n'
 
 const MAX_TILES = 300
 
@@ -17,8 +18,8 @@ export function altFromPath(p: string): string {
 
 export function renderFilesTab(pane: HTMLElement, ctx: TabContext) {
   const { opts } = ctx
-  const filter = textInput(filterText, 'Dateiname filtern …')
-  const choose = el('button', { type: 'button' }, 'Datei wählen …')
+  const filter = textInput(filterText, t('picker.filesFilter'))
+  const choose = el('button', { type: 'button' }, t('picker.filesChoose'))
   const grid = el('div', { class: 'pk-grid pk-files' })
   const status = el('span', { class: 'pk-status' })
   choose.hidden = !opts.pickFile
@@ -29,17 +30,17 @@ export function renderFilesTab(pane: HTMLElement, ctx: TabContext) {
   pane.append(el('div', { class: 'pk-row' }, filter, choose), status, grid)
 
   if (!opts.docPath) {
-    status.textContent = 'Das Dokument ist noch nicht gespeichert – Bilder werden relativ zum Speicherort des .md gesucht.'
+    status.textContent = t('picker.filesUnsaved')
     return
   }
   const dir = host.dirname(opts.docPath)
-  status.textContent = 'Suche Bilder …'
+  status.textContent = t('picker.filesSearching')
   let all: string[] = []
   const draw = () => {
     grid.replaceChildren()
     const q = filterText.toLowerCase()
     const hits = all.filter((f) => f.toLowerCase().includes(q))
-    status.textContent = `${hits.length} Bild(er) in ${dir}`
+    status.textContent = t('picker.filesCount', { n: hits.length, dir })
     for (const f of hits.slice(0, MAX_TILES)) {
       const rel = host.encodePath(f)
       const b = el(
@@ -49,7 +50,7 @@ export function renderFilesTab(pane: HTMLElement, ctx: TabContext) {
         el('span', {}, f),
       )
       b.onclick = () => {
-        for (const t of grid.children) t.setAttribute('aria-pressed', String(t === b))
+        for (const tile of grid.children) tile.setAttribute('aria-pressed', String(tile === b))
         ctx.set({ src: rel, alt: altFromPath(f), html: null, title: null })
       }
       grid.append(b)

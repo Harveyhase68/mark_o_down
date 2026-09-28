@@ -1,5 +1,7 @@
 // Badge & icon sources. Everything here is data: the user can edit it as
-// `badges.json` in the app config folder (Konfiguration… in the picker).
+// `badges.json` in the app config folder (the settings button in the picker).
+// Until then the defaults follow the UI language; the file only exists once
+// the user saves it.
 //
 // URL templates use `{field}` placeholders with optional filters:
 //   {x}          URL-encoded (encodeURIComponent)
@@ -9,6 +11,7 @@
 // Query parameters that end up empty (`&logo=`) are removed automatically.
 
 import * as host from '../platform'
+import { LANGUAGES, getLang, t, tIn, type Lang, type MessageKey } from '../i18n'
 
 export interface BadgeField {
   key: string
@@ -59,127 +62,132 @@ export interface PickerConfig {
 }
 
 export const CONFIG_FILE = 'badges.json'
+const DEFAULT_CACHE_HOURS = 168
 
-const STYLE: BadgeField = { key: 'style', label: 'Stil', default: 'flat', options: ['flat', 'flat-square', 'plastic', 'for-the-badge', 'social'] }
-const PKG = (def: string): BadgeField => ({ key: 'package', label: 'Paket', default: def })
-const REPO: BadgeField = { key: 'repo', label: 'Repository (owner/name)', default: 'tauri-apps/tauri' }
+/** The built-in sources, with names and labels in the given language. */
+export function defaultConfig(lang: Lang = getLang()): PickerConfig {
+  const L = (key: MessageKey) => tIn(lang, key)
+  const STYLE: BadgeField = { key: 'style', label: L('bdg.fStyle'), default: 'flat', options: ['flat', 'flat-square', 'plastic', 'for-the-badge', 'social'] }
+  const PKG = (def: string): BadgeField => ({ key: 'package', label: L('bdg.fPackage'), default: def })
+  const REPO: BadgeField = { key: 'repo', label: L('bdg.fRepo'), default: 'tauri-apps/tauri' }
 
-export const DEFAULT_CONFIG: PickerConfig = {
-  version: 1,
-  cacheHours: 168,
-  providers: [
-    {
-      id: 'shields',
-      name: 'shields.io',
-      home: 'https://shields.io',
-      templates: [
-        {
-          id: 'static',
-          name: 'Statisch (Label · Text · Farbe)',
-          url: 'https://img.shields.io/badge/{label|shields}-{message|shields}-{color|hex}?style={style}&logo={logo}&logoColor={logoColor|hex}',
-          alt: '{label}: {message}',
-          fields: [
-            { key: 'label', label: 'Label', default: 'Made with' },
-            { key: 'message', label: 'Text', default: 'Rust' },
-            { key: 'color', label: 'Farbe', default: 'orange', placeholder: 'orange, blue, #1e90ff …' },
-            STYLE,
-            { key: 'logo', label: 'Logo (Simple-Icons-Slug)', default: 'rust', placeholder: 'rust, github, react …' },
-            { key: 'logoColor', label: 'Logo-Farbe', default: '', placeholder: 'white' },
-          ],
-        },
-        {
-          id: 'license',
-          name: 'Lizenz',
-          url: 'https://img.shields.io/badge/License-{license|shields}-{color|hex}.svg?style={style}',
-          alt: 'License: {license}',
-          link: '{link|raw}',
-          fields: [
-            { key: 'license', label: 'Lizenz', default: 'MIT' },
-            { key: 'color', label: 'Farbe', default: 'yellow' },
-            STYLE,
-            { key: 'link', label: 'Link', default: 'https://opensource.org/licenses/MIT' },
-          ],
-        },
-        { id: 'npm-v', name: 'npm Version', url: 'https://img.shields.io/npm/v/{package}?style={style}&logo=npm', alt: 'npm', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express'), STYLE] },
-        { id: 'npm-dm', name: 'npm Downloads/Monat', url: 'https://img.shields.io/npm/dm/{package}?style={style}', alt: 'npm downloads', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express'), STYLE] },
-        { id: 'crates', name: 'crates.io Version', url: 'https://img.shields.io/crates/v/{crate}?style={style}&logo=rust', alt: 'crates.io', link: 'https://crates.io/crates/{crate}', fields: [{ key: 'crate', label: 'Crate', default: 'serde' }, STYLE] },
-        { id: 'pypi', name: 'PyPI Version', url: 'https://img.shields.io/pypi/v/{package}?style={style}&logo=pypi', alt: 'PyPI', link: 'https://pypi.org/project/{package}/', fields: [PKG('requests'), STYLE] },
-        { id: 'gh-stars', name: 'GitHub Stars', url: 'https://img.shields.io/github/stars/{repo|raw}?style={style}', alt: 'GitHub stars', link: 'https://github.com/{repo|raw}/stargazers', fields: [REPO, { ...STYLE, default: 'social' }] },
-        { id: 'gh-release', name: 'GitHub Release', url: 'https://img.shields.io/github/v/release/{repo|raw}?style={style}', alt: 'GitHub release', link: 'https://github.com/{repo|raw}/releases', fields: [REPO, STYLE] },
-        { id: 'gh-license', name: 'GitHub Lizenz', url: 'https://img.shields.io/github/license/{repo|raw}?style={style}', alt: 'License', link: 'https://github.com/{repo|raw}/blob/HEAD/LICENSE', fields: [REPO, STYLE] },
-        {
-          id: 'gh-actions',
-          name: 'GitHub Actions Status',
-          url: 'https://img.shields.io/github/actions/workflow/status/{repo|raw}/{workflow|raw}?style={style}',
-          alt: 'Build',
-          link: 'https://github.com/{repo|raw}/actions',
-          fields: [REPO, { key: 'workflow', label: 'Workflow-Datei', default: 'test-core.yml' }, STYLE],
-        },
-        { id: 'gh-commit', name: 'GitHub letzter Commit', url: 'https://img.shields.io/github/last-commit/{repo|raw}?style={style}', alt: 'Last commit', link: 'https://github.com/{repo|raw}/commits', fields: [REPO, STYLE] },
-        { id: 'gh-downloads', name: 'GitHub Downloads', url: 'https://img.shields.io/github/downloads/{repo|raw}/total?style={style}', alt: 'Downloads', link: 'https://github.com/{repo|raw}/releases', fields: [REPO, STYLE] },
-        { id: 'docker', name: 'Docker Pulls', url: 'https://img.shields.io/docker/pulls/{image|raw}?style={style}&logo=docker', alt: 'Docker pulls', link: 'https://hub.docker.com/r/{image|raw}', fields: [{ key: 'image', label: 'Image', default: 'library/nginx' }, STYLE] },
-      ],
-    },
-    {
-      id: 'badgen',
-      name: 'badgen.net',
-      home: 'https://badgen.net',
-      templates: [
-        {
-          id: 'static',
-          name: 'Statisch (Subject · Status · Farbe)',
-          url: 'https://badgen.net/badge/{subject}/{status}/{color|hex}?icon={icon}',
-          alt: '{subject}: {status}',
-          fields: [
-            { key: 'subject', label: 'Subject', default: 'license' },
-            { key: 'status', label: 'Status', default: 'MIT' },
-            { key: 'color', label: 'Farbe', default: 'blue', placeholder: 'blue, green, red, orange, grey …' },
-            { key: 'icon', label: 'Icon', default: '', placeholder: 'github, npm, docker …' },
-          ],
-        },
-        { id: 'npm-v', name: 'npm Version', url: 'https://badgen.net/npm/v/{package}', alt: 'npm', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express')] },
-        { id: 'npm-dm', name: 'npm Downloads/Monat', url: 'https://badgen.net/npm/dm/{package}', alt: 'npm downloads', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express')] },
-        { id: 'crates', name: 'crates.io Version', url: 'https://badgen.net/crates/v/{crate}', alt: 'crates.io', link: 'https://crates.io/crates/{crate}', fields: [{ key: 'crate', label: 'Crate', default: 'serde' }] },
-        { id: 'pypi', name: 'PyPI Version', url: 'https://badgen.net/pypi/v/{package}', alt: 'PyPI', link: 'https://pypi.org/project/{package}/', fields: [PKG('requests')] },
-        { id: 'gh-stars', name: 'GitHub Stars', url: 'https://badgen.net/github/stars/{repo|raw}', alt: 'GitHub stars', link: 'https://github.com/{repo|raw}/stargazers', fields: [REPO] },
-        { id: 'gh-release', name: 'GitHub Release', url: 'https://badgen.net/github/release/{repo|raw}', alt: 'GitHub release', link: 'https://github.com/{repo|raw}/releases', fields: [REPO] },
-        { id: 'gh-license', name: 'GitHub Lizenz', url: 'https://badgen.net/github/license/{repo|raw}', alt: 'License', link: 'https://github.com/{repo|raw}', fields: [REPO] },
-      ],
-    },
-    {
-      id: 'forthebadge',
-      name: 'forthebadge.com',
-      home: 'https://forthebadge.com',
-      templates: [
-        {
-          id: 'generate',
-          name: 'Eigenes Badge (2 Felder)',
-          url: 'https://forthebadge.com/api/badges/generate?primaryLabel={primary}&secondaryLabel={secondary}&primaryBGColor={primaryColor}&secondaryBGColor={secondaryColor}&primaryIcon={icon}',
-          alt: '{primary} {secondary}',
-          fields: [
-            { key: 'primary', label: 'Text links', default: 'BUILT WITH' },
-            { key: 'secondary', label: 'Text rechts', default: 'RUST' },
-            { key: 'primaryColor', label: 'Farbe links', default: '#31C4F3' },
-            { key: 'secondaryColor', label: 'Farbe rechts', default: '#389AD5' },
-            { key: 'icon', label: 'Icon (Slug)', default: 'rust', placeholder: 'react, github, typescript …' },
-          ],
-        },
-        { id: 'love', name: 'Built with love', url: 'https://forthebadge.com/featured/featured-built-with-love.svg', alt: 'Built with love', fields: [] },
-        { id: 'uses-badges', name: 'Uses badges', url: 'https://forthebadge.com/featured/featured-uses-badges.svg', alt: 'Uses badges', fields: [] },
-        { id: 'uses-html', name: 'Uses HTML', url: 'https://forthebadge.com/featured/featured-uses-html.svg', alt: 'Uses HTML', fields: [] },
-      ],
-    },
-  ],
-  iconSets: [
-    {
-      id: 'simpleicons',
-      name: 'Simple Icons',
-      home: 'https://simpleicons.org',
-      index: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/data/simple-icons.json',
-      icon: 'https://cdn.simpleicons.org/{slug}/{color|hex}',
-      badge: 'https://img.shields.io/badge/{title|shields}-{hex|hex}?style={style}&logo={slug}&logoColor=white',
-    },
-  ],
+  return {
+    version: 1,
+    cacheHours: DEFAULT_CACHE_HOURS,
+    providers: [
+      {
+        id: 'shields',
+        name: 'shields.io',
+        home: 'https://shields.io',
+        templates: [
+          {
+            id: 'static',
+            name: L('bdg.static'),
+            url: 'https://img.shields.io/badge/{label|shields}-{message|shields}-{color|hex}?style={style}&logo={logo}&logoColor={logoColor|hex}',
+            alt: '{label}: {message}',
+            fields: [
+              { key: 'label', label: L('bdg.fLabel'), default: 'Made with' },
+              { key: 'message', label: L('bdg.fMessage'), default: 'Rust' },
+              { key: 'color', label: L('bdg.fColor'), default: 'orange', placeholder: L('bdg.fColorPh') },
+              STYLE,
+              { key: 'logo', label: L('bdg.fLogo'), default: 'rust', placeholder: L('bdg.fLogoPh') },
+              { key: 'logoColor', label: L('bdg.fLogoColor'), default: '', placeholder: 'white' },
+            ],
+          },
+          {
+            id: 'license',
+            name: L('bdg.license'),
+            url: 'https://img.shields.io/badge/License-{license|shields}-{color|hex}.svg?style={style}',
+            alt: 'License: {license}',
+            link: '{link|raw}',
+            fields: [
+              { key: 'license', label: L('bdg.fLicense'), default: 'MIT' },
+              { key: 'color', label: L('bdg.fColor'), default: 'yellow' },
+              STYLE,
+              { key: 'link', label: L('bdg.fLink'), default: 'https://opensource.org/licenses/MIT' },
+            ],
+          },
+          { id: 'npm-v', name: L('bdg.npmV'), url: 'https://img.shields.io/npm/v/{package}?style={style}&logo=npm', alt: 'npm', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express'), STYLE] },
+          { id: 'npm-dm', name: L('bdg.npmDm'), url: 'https://img.shields.io/npm/dm/{package}?style={style}', alt: 'npm downloads', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express'), STYLE] },
+          { id: 'crates', name: L('bdg.crates'), url: 'https://img.shields.io/crates/v/{crate}?style={style}&logo=rust', alt: 'crates.io', link: 'https://crates.io/crates/{crate}', fields: [{ key: 'crate', label: L('bdg.fCrate'), default: 'serde' }, STYLE] },
+          { id: 'pypi', name: L('bdg.pypi'), url: 'https://img.shields.io/pypi/v/{package}?style={style}&logo=pypi', alt: 'PyPI', link: 'https://pypi.org/project/{package}/', fields: [PKG('requests'), STYLE] },
+          { id: 'gh-stars', name: L('bdg.ghStars'), url: 'https://img.shields.io/github/stars/{repo|raw}?style={style}', alt: 'GitHub stars', link: 'https://github.com/{repo|raw}/stargazers', fields: [REPO, { ...STYLE, default: 'social' }] },
+          { id: 'gh-release', name: L('bdg.ghRelease'), url: 'https://img.shields.io/github/v/release/{repo|raw}?style={style}', alt: 'GitHub release', link: 'https://github.com/{repo|raw}/releases', fields: [REPO, STYLE] },
+          { id: 'gh-license', name: L('bdg.ghLicense'), url: 'https://img.shields.io/github/license/{repo|raw}?style={style}', alt: 'License', link: 'https://github.com/{repo|raw}/blob/HEAD/LICENSE', fields: [REPO, STYLE] },
+          {
+            id: 'gh-actions',
+            name: L('bdg.ghActions'),
+            url: 'https://img.shields.io/github/actions/workflow/status/{repo|raw}/{workflow|raw}?style={style}',
+            alt: 'Build',
+            link: 'https://github.com/{repo|raw}/actions',
+            fields: [REPO, { key: 'workflow', label: L('bdg.fWorkflow'), default: 'test-core.yml' }, STYLE],
+          },
+          { id: 'gh-commit', name: L('bdg.ghCommit'), url: 'https://img.shields.io/github/last-commit/{repo|raw}?style={style}', alt: 'Last commit', link: 'https://github.com/{repo|raw}/commits', fields: [REPO, STYLE] },
+          { id: 'gh-downloads', name: L('bdg.ghDownloads'), url: 'https://img.shields.io/github/downloads/{repo|raw}/total?style={style}', alt: 'Downloads', link: 'https://github.com/{repo|raw}/releases', fields: [REPO, STYLE] },
+          { id: 'docker', name: L('bdg.docker'), url: 'https://img.shields.io/docker/pulls/{image|raw}?style={style}&logo=docker', alt: 'Docker pulls', link: 'https://hub.docker.com/r/{image|raw}', fields: [{ key: 'image', label: L('bdg.fImage'), default: 'library/nginx' }, STYLE] },
+        ],
+      },
+      {
+        id: 'badgen',
+        name: 'badgen.net',
+        home: 'https://badgen.net',
+        templates: [
+          {
+            id: 'static',
+            name: L('bdg.badgenStatic'),
+            url: 'https://badgen.net/badge/{subject}/{status}/{color|hex}?icon={icon}',
+            alt: '{subject}: {status}',
+            fields: [
+              { key: 'subject', label: L('bdg.fSubject'), default: 'license' },
+              { key: 'status', label: L('bdg.fStatus'), default: 'MIT' },
+              { key: 'color', label: L('bdg.fColor'), default: 'blue', placeholder: L('bdg.fBadgenColorPh') },
+              { key: 'icon', label: L('bdg.fIcon'), default: '', placeholder: L('bdg.fIconPh') },
+            ],
+          },
+          { id: 'npm-v', name: L('bdg.npmV'), url: 'https://badgen.net/npm/v/{package}', alt: 'npm', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express')] },
+          { id: 'npm-dm', name: L('bdg.npmDm'), url: 'https://badgen.net/npm/dm/{package}', alt: 'npm downloads', link: 'https://www.npmjs.com/package/{package}', fields: [PKG('express')] },
+          { id: 'crates', name: L('bdg.crates'), url: 'https://badgen.net/crates/v/{crate}', alt: 'crates.io', link: 'https://crates.io/crates/{crate}', fields: [{ key: 'crate', label: L('bdg.fCrate'), default: 'serde' }] },
+          { id: 'pypi', name: L('bdg.pypi'), url: 'https://badgen.net/pypi/v/{package}', alt: 'PyPI', link: 'https://pypi.org/project/{package}/', fields: [PKG('requests')] },
+          { id: 'gh-stars', name: L('bdg.ghStars'), url: 'https://badgen.net/github/stars/{repo|raw}', alt: 'GitHub stars', link: 'https://github.com/{repo|raw}/stargazers', fields: [REPO] },
+          { id: 'gh-release', name: L('bdg.ghRelease'), url: 'https://badgen.net/github/release/{repo|raw}', alt: 'GitHub release', link: 'https://github.com/{repo|raw}/releases', fields: [REPO] },
+          { id: 'gh-license', name: L('bdg.ghLicense'), url: 'https://badgen.net/github/license/{repo|raw}', alt: 'License', link: 'https://github.com/{repo|raw}', fields: [REPO] },
+        ],
+      },
+      {
+        id: 'forthebadge',
+        name: 'forthebadge.com',
+        home: 'https://forthebadge.com',
+        templates: [
+          {
+            id: 'generate',
+            name: L('bdg.ftbGenerate'),
+            url: 'https://forthebadge.com/api/badges/generate?primaryLabel={primary}&secondaryLabel={secondary}&primaryBGColor={primaryColor}&secondaryBGColor={secondaryColor}&primaryIcon={icon}',
+            alt: '{primary} {secondary}',
+            fields: [
+              { key: 'primary', label: L('bdg.fPrimary'), default: 'BUILT WITH' },
+              { key: 'secondary', label: L('bdg.fSecondary'), default: 'RUST' },
+              { key: 'primaryColor', label: L('bdg.fPrimaryColor'), default: '#31C4F3' },
+              { key: 'secondaryColor', label: L('bdg.fSecondaryColor'), default: '#389AD5' },
+              { key: 'icon', label: L('bdg.fIconSlug'), default: 'rust', placeholder: L('bdg.fIconSlugPh') },
+            ],
+          },
+          { id: 'love', name: 'Built with love', url: 'https://forthebadge.com/featured/featured-built-with-love.svg', alt: 'Built with love', fields: [] },
+          { id: 'uses-badges', name: 'Uses badges', url: 'https://forthebadge.com/featured/featured-uses-badges.svg', alt: 'Uses badges', fields: [] },
+          { id: 'uses-html', name: 'Uses HTML', url: 'https://forthebadge.com/featured/featured-uses-html.svg', alt: 'Uses HTML', fields: [] },
+        ],
+      },
+    ],
+    iconSets: [
+      {
+        id: 'simpleicons',
+        name: 'Simple Icons',
+        home: 'https://simpleicons.org',
+        index: 'https://cdn.jsdelivr.net/npm/simple-icons@latest/data/simple-icons.json',
+        icon: 'https://cdn.simpleicons.org/{slug}/{color|hex}',
+        badge: 'https://img.shields.io/badge/{title|shields}-{hex|hex}?style={style}&logo={slug}&logoColor=white',
+      },
+    ],
+  }
 }
 
 // ------------------------------------------------------------------ templates
@@ -223,31 +231,39 @@ export function configText(config: PickerConfig): string {
 /** Validate user JSON; throws a readable message. */
 export function parseConfig(text: string): PickerConfig {
   const c = JSON.parse(text) as PickerConfig
-  if (!c || typeof c !== 'object') throw new Error('Die Konfiguration muss ein JSON-Objekt sein.')
-  if (!Array.isArray(c.providers)) throw new Error('"providers" fehlt oder ist keine Liste.')
-  if (!Array.isArray(c.iconSets)) throw new Error('"iconSets" fehlt oder ist keine Liste.')
+  if (!c || typeof c !== 'object') throw new Error(t('config.notObject'))
+  if (!Array.isArray(c.providers)) throw new Error(t('config.noProviders'))
+  if (!Array.isArray(c.iconSets)) throw new Error(t('config.noIconSets'))
   for (const p of c.providers) {
-    if (!p.id || !p.name || !Array.isArray(p.templates)) throw new Error(`Anbieter "${p.name ?? p.id ?? '?'}": id, name und templates sind nötig.`)
-    for (const t of p.templates) {
-      if (!t.id || !t.name || !t.url) throw new Error(`Vorlage in "${p.name}": id, name und url sind nötig.`)
-      t.fields ??= []
+    if (!p.id || !p.name || !Array.isArray(p.templates)) throw new Error(t('config.badProvider', { name: p.name ?? p.id ?? '?' }))
+    for (const tpl of p.templates) {
+      if (!tpl.id || !tpl.name || !tpl.url) throw new Error(t('config.badTemplate', { name: p.name }))
+      tpl.fields ??= []
     }
   }
-  c.cacheHours = Number.isFinite(c.cacheHours) ? c.cacheHours : DEFAULT_CONFIG.cacheHours
+  c.cacheHours = Number.isFinite(c.cacheHours) ? c.cacheHours : DEFAULT_CACHE_HOURS
   return c
 }
 
-/** The user's config; created from the defaults on first use so it can be edited. */
-export async function loadConfig(): Promise<{ config: PickerConfig; error?: string }> {
+/**
+ * A file that is exactly the defaults of some language was never edited (older
+ * versions wrote it on first use): it follows the UI language like no file at all.
+ */
+export const isDefaultConfigText = (text: string) => LANGUAGES.some(({ code }) => text === configText(defaultConfig(code)))
+
+/** The user's config file text, or the defaults (in the UI language) when there is none of their own. */
+export async function readConfigText(): Promise<string> {
   const text = await host.configRead(CONFIG_FILE).catch(() => null)
-  if (text === null) {
-    await host.configWrite(CONFIG_FILE, configText(DEFAULT_CONFIG)).catch(() => {})
-    return { config: DEFAULT_CONFIG }
-  }
+  return text === null || isDefaultConfigText(text) ? configText(defaultConfig()) : text
+}
+
+/** The user's config, else the defaults in the UI language. */
+export async function loadConfig(): Promise<{ config: PickerConfig; error?: string }> {
+  const text = await readConfigText()
   try {
     return { config: parseConfig(text) }
   } catch (e) {
-    return { config: DEFAULT_CONFIG, error: `${CONFIG_FILE} ist fehlerhaft (${(e as Error).message}) – es werden die Standardwerte verwendet.` }
+    return { config: defaultConfig(), error: t('config.broken', { file: CONFIG_FILE, error: (e as Error).message }) }
   }
 }
 

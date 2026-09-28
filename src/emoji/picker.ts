@@ -1,24 +1,36 @@
-// Emoji & symbol dialog: search (EN/DE, inside words), groups, skin tones,
+// Emoji & symbol dialog: search (English + UI language, inside words), groups, skin tones,
 // recently used. Resolves with the character(s) to insert, or null.
 
-import { EMOJI_GROUPS, codepoints, prepare, search, type Entry, type UnicodeData } from './search'
+import { EMOJI_GROUPS, codepoints, prepare, search, type Entry, type UnicodeData, type UnicodeNames } from './search'
 import { el, store } from '../editor/dom'
 import { openModal } from '../editor/modal'
+import { getLang, kbd, t, type Lang, type MessageKey } from '../i18n'
 
-let cache: { data: UnicodeData; entries: Entry[] } | null = null
+// separate chunks: only loaded when the dialog is opened (English is in the base data)
+const LOCAL_NAMES: Record<Exclude<Lang, 'en'>, () => Promise<{ default: unknown }>> = {
+  de: () => import('./unicode-de.json'),
+  fr: () => import('./unicode-fr.json'),
+  es: () => import('./unicode-es.json'),
+  it: () => import('./unicode-it.json'),
+}
+
+let cache: { lang: Lang; data: UnicodeData; entries: Entry[] } | null = null
 async function load() {
-  if (!cache) {
-    // separate chunk: only loaded when the dialog is opened
-    const data = (await import('./unicode-data.json')).default as unknown as UnicodeData
-    cache = { data, entries: prepare(data) }
+  const lang = getLang()
+  if (cache?.lang !== lang) {
+    const data = cache?.data ?? ((await import('./unicode-data.json')).default as unknown as UnicodeData)
+    const local = lang === 'en' ? undefined : ((await LOCAL_NAMES[lang]()).default as UnicodeNames)
+    cache = { lang, data, entries: prepare(data, local) }
   }
   return cache
 }
 
+/** Tab / heading text of a group: emoji groups are translated, Unicode block names stay English. */
+const groupName = (data: UnicodeData, g: number) => (g < EMOJI_GROUPS ? t(`emoji.group${g}` as MessageKey) : data.groups[g])
+
 const RECENT_KEY = 'mod-emoji-recent'
 const TONE_KEY = 'mod-emoji-tone'
 const TONE_SWATCHES = ['✋', '✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿']
-const TONE_NAMES = ['Standard', 'hell', 'mittelhell', 'mittel', 'mitteldunkel', 'dunkel']
 
 let lastGroup: number | 'recent' = 0
 let lastQuery = ''
@@ -26,25 +38,25 @@ let lastQuery = ''
 export function openEmojiPicker(): Promise<string | null> {
   return new Promise((resolve) => {
     const box = el('div', { class: 'emoji-picker' })
-    const closeX = el('button', { type: 'button', class: 'ep-x', title: 'Schließen (Esc)', 'aria-label': 'Schließen' }, '✕')
-    const input = el('input', { type: 'search', placeholder: 'Suchen … z. B. sleep, lachen, pfeil, with, U+1F602', spellcheck: 'false' })
-    const toneBox = el('div', { class: 'ep-tones', role: 'radiogroup', 'aria-label': 'Hautfarbe' })
+    const closeX = el('button', { type: 'button', class: 'ep-x', title: `${t('common.close')} (${kbd('Esc')})`, 'aria-label': t('common.close') }, '✕')
+    const input = el('input', { type: 'search', placeholder: t('emoji.search'), spellcheck: 'false' })
+    const toneBox = el('div', { class: 'ep-tones', role: 'radiogroup', 'aria-label': t('emoji.skinTone') })
     const tabs = el('nav', { class: 'ep-tabs' })
-    const status = el('div', { class: 'ep-status' }, 'Lade Unicode-Daten …')
-    const grid = el('div', { class: 'ep-grid', role: 'listbox', tabindex: '0', 'aria-label': 'Zeichen – Pfeiltasten wählen, Enter fügt ein' })
+    const status = el('div', { class: 'ep-status' }, t('emoji.loading'))
+    const grid = el('div', { class: 'ep-grid', role: 'listbox', tabindex: '0', 'aria-label': t('emoji.grid') })
     const big = el('div', { class: 'ep-big' })
     const info = el('div', { class: 'ep-info' })
-    const cancel = el('button', { type: 'button' }, 'Abbrechen')
-    const ok = el('button', { type: 'button', class: 'primary' }, 'Einfügen')
+    const cancel = el('button', { type: 'button' }, t('common.cancel'))
+    const ok = el('button', { type: 'button', class: 'primary' }, t('common.insert'))
     box.append(
-      el('header', {}, el('h2', {}, 'Emoji & Zeichen'), closeX),
+      el('header', {}, el('h2', {}, t('emoji.title')), closeX),
       el('div', { class: 'ep-search' }, input, toneBox),
       tabs,
       status,
       grid,
       el('footer', {}, big, info, el('div', { class: 'buttons' }, cancel, ok)),
     )
-    const modal = openModal(box, { label: 'Emoji & Zeichen einfügen', onCancel: () => close(null) })
+    const modal = openModal(box, { label: t('emoji.label'), onCancel: () => close(null) })
     input.value = lastQuery
     input.focus()
 
@@ -58,7 +70,7 @@ export function openEmojiPicker(): Promise<string | null> {
 
     // ------------------------------------------------------------ tones
     TONE_SWATCHES.forEach((s, i) => {
-      const b = el('button', { type: 'button', role: 'radio', title: `Hautfarbe: ${TONE_NAMES[i]}`, 'aria-checked': String(i === tone) }, s)
+      const b = el('button', { type: 'button', role: 'radio', title: t('emoji.tone', { tone: t(`emoji.tone${i}` as MessageKey) }), 'aria-checked': String(i === tone) }, s)
       b.onclick = () => {
         tone = i
         store.set(TONE_KEY, tone)
@@ -84,8 +96,8 @@ export function openEmojiPicker(): Promise<string | null> {
       }
       const ch = withTone(e)
       big.textContent = ch
-      const title = el('strong', {}, e.nameDe || e.nameEn)
-      const sub = el('span', {}, [e.nameDe ? e.nameEn : '', codepoints(ch)].filter(Boolean).join(' · '))
+      const title = el('strong', {}, e.name || e.nameEn)
+      const sub = el('span', {}, [e.name ? e.nameEn : '', codepoints(ch)].filter(Boolean).join(' · '))
       const kw = el('span', { class: 'ep-kw' }, e.keywords.slice(0, 12).join(', '))
       info.replaceChildren(title, sub, kw)
     }
@@ -100,7 +112,7 @@ export function openEmojiPicker(): Promise<string | null> {
 
     // ------------------------------------------------------------ rendering
     function tile(e: Entry, i: number): HTMLButtonElement {
-      const b = el('button', { type: 'button', class: e.isEmoji ? 'ep-tile' : 'ep-tile ep-sym', role: 'option', title: e.nameDe || e.nameEn, 'data-i': String(i), tabindex: '-1' }, withTone(e))
+      const b = el('button', { type: 'button', class: e.isEmoji ? 'ep-tile' : 'ep-tile ep-sym', role: 'option', title: e.name || e.nameEn, 'data-i': String(i), tabindex: '-1' }, withTone(e))
       return b
     }
 
@@ -129,28 +141,28 @@ export function openEmojiPicker(): Promise<string | null> {
       if (!data) return
       const q = input.value.trim()
       lastQuery = input.value
-      for (const t of tabs.children) t.setAttribute('aria-selected', String(!q && (t as HTMLElement).dataset.g === String(lastGroup)))
+      for (const b of tabs.children) b.setAttribute('aria-selected', String(!q && (b as HTMLElement).dataset.g === String(lastGroup)))
       if (q) {
         const hits = search(entries, q, 600)
-        status.textContent = hits.length ? `${hits.length === 600 ? '600+' : hits.length} Treffer für „${q}“` : `Keine Treffer für „${q}“`
+        status.textContent = hits.length ? t('emoji.hits', { n: hits.length === 600 ? '600+' : hits.length, q }) : t('emoji.noHits', { q })
         return show(hits)
       }
       if (lastGroup === 'recent') {
         const recent = store.get<string[]>(RECENT_KEY, [])
         const byChar = new Map(entries.map((e) => [e.char, e]))
         const list = recent.map((c) => byChar.get(c)).filter((e): e is Entry => !!e)
-        status.textContent = list.length ? 'Zuletzt verwendet' : 'Noch nichts verwendet.'
+        status.textContent = list.length ? t('emoji.recent') : t('emoji.recentEmpty')
         return show(list)
       }
       if (lastGroup === EMOJI_GROUPS) {
         // all symbol blocks, with block headings
         const list = entries.filter((e) => !e.isEmoji)
-        status.textContent = `${list.length} Zeichen in ${data.groups.length - EMOJI_GROUPS} Unicode-Blöcken`
+        status.textContent = t('emoji.symbolsCount', { n: list.length, blocks: data.groups.length - EMOJI_GROUPS })
         let prev = -1
-        return show(list, (e) => (e.group !== prev ? ((prev = e.group), data!.groups[e.group].replace(/^Zeichen: /, '')) : null))
+        return show(list, (e) => (e.group !== prev ? ((prev = e.group), data!.groups[e.group]) : null))
       }
       const list = entries.filter((e) => e.group === lastGroup)
-      status.textContent = `${data.groups[lastGroup as number]} · ${list.length}`
+      status.textContent = `${groupName(data, lastGroup as number)} · ${list.length}`
       show(list)
     }
 
@@ -161,12 +173,12 @@ export function openEmojiPicker(): Promise<string | null> {
       timer = window.setTimeout(render, 80)
     }
     grid.onclick = (ev) => {
-      const t = (ev.target as HTMLElement).closest<HTMLElement>('[data-i]')
-      if (t) select(Number(t.dataset.i), false)
+      const hit = (ev.target as HTMLElement).closest<HTMLElement>('[data-i]')
+      if (hit) select(Number(hit.dataset.i), false)
     }
     grid.ondblclick = (ev) => {
-      const t = (ev.target as HTMLElement).closest<HTMLElement>('[data-i]')
-      if (t) insert(shown[Number(t.dataset.i)])
+      const hit = (ev.target as HTMLElement).closest<HTMLElement>('[data-i]')
+      if (hit) insert(shown[Number(hit.dataset.i)])
     }
     const columns = () => {
       const first = grid.querySelector<HTMLElement>('.ep-tile')
@@ -177,7 +189,7 @@ export function openEmojiPicker(): Promise<string | null> {
     box.addEventListener('keydown', (e) => {
       const k = e.key
       const onButton = (e.target as HTMLElement).tagName === 'BUTTON'
-      // Enter inserts – except on a focused button (Abbrechen, a tab …), which does its own thing
+      // Enter inserts – except on a focused button (Cancel, a tab …), which does its own thing
       if (k === 'Enter' && !onButton) return void (e.preventDefault(), insert())
       const step = k === 'ArrowRight' ? 1 : k === 'ArrowLeft' ? -1 : k === 'ArrowDown' ? columns() : k === 'ArrowUp' ? -columns() : 0
       // in the search field left/right move the text cursor
@@ -210,12 +222,12 @@ export function openEmojiPicker(): Promise<string | null> {
         }
         tabs.append(b)
       }
-      tab('recent', '🕘', 'Zuletzt verwendet')
+      tab('recent', '🕘', t('emoji.recent'))
       for (let g = 0; g < EMOJI_GROUPS; g++) {
         const first = entries.find((e) => e.group === g)
-        tab(g, first?.char ?? '•', c.data.groups[g])
+        tab(g, first?.char ?? '•', groupName(c.data, g))
       }
-      tab(EMOJI_GROUPS, 'Ω', 'Zeichen & Symbole (alle Unicode-Blöcke)')
+      tab(EMOJI_GROUPS, 'Ω', t('emoji.symbols'))
       box.dataset.version = `Emoji ${c.data.version.emoji} · Unicode ${c.data.version.unicode} · CLDR ${c.data.version.cldr}`
       render()
     })

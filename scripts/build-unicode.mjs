@@ -1,8 +1,12 @@
-// Builds src/emoji/unicode-data.json from the official sources:
+// Builds the emoji/symbol data from the official sources:
 //   • Unicode emoji-test.txt   – every RGI emoji, its group and English name
 //   • Unicode UnicodeData.txt  – names of all other symbols / punctuation / number forms
 //   • Unicode Blocks.txt       – block names used to group the symbols
-//   • CLDR annotations (en/de) – short names + search keywords ("lachen", "lol", …)
+//   • CLDR annotations         – short names + search keywords ("lachen", "lol", …)
+//
+// Output: src/emoji/unicode-data.json (characters, groups, English names and
+// keywords) and src/emoji/unicode-<lang>.json per UI language (names and
+// keywords in that language, in the same order as the items).
 //
 // Run `npm run unicode` to update to the latest Unicode/CLDR release.
 
@@ -10,7 +14,10 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'emoji', 'unicode-data.json')
+const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'emoji')
+const OUT = join(DIR, 'unicode-data.json')
+/** UI languages besides English (see src/i18n). */
+const LANGS = ['de', 'fr', 'es', 'it']
 
 const SOURCES = {
   emojiTest: 'https://unicode.org/Public/emoji/latest/emoji-test.txt',
@@ -27,18 +34,6 @@ const SOURCES = {
 // General categories of non-emoji characters we offer (symbols, punctuation, number forms).
 const SYMBOL_CATEGORIES = new Set(['Sm', 'Sc', 'Sk', 'So', 'Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po', 'No', 'Nl'])
 
-const GROUPS_DE = {
-  'Smileys & Emotion': 'Smileys & Gefühle',
-  'People & Body': 'Menschen & Körper',
-  'Animals & Nature': 'Tiere & Natur',
-  'Food & Drink': 'Essen & Trinken',
-  'Travel & Places': 'Reisen & Orte',
-  Activities: 'Aktivitäten',
-  Objects: 'Objekte',
-  Symbols: 'Symbole',
-  Flags: 'Flaggen',
-}
-
 const TONES = ['1F3FB', '1F3FC', '1F3FD', '1F3FE', '1F3FF'].map((h) => String.fromCodePoint(parseInt(h, 16)))
 
 async function text(url) {
@@ -51,17 +46,14 @@ const json = async (url) => JSON.parse(await text(url))
 const fromHex = (hex) => String.fromCodePoint(...hex.trim().split(/\s+/).map((h) => parseInt(h, 16)))
 const stripVS = (s) => s.replace(/️/g, '')
 
-console.log('Lade Unicode- und CLDR-Daten …')
+console.log('Loading Unicode and CLDR data …')
 const [emojiTest, unicodeData, blocksTxt, readme, cldrPkg, ...cldr] = await Promise.all([
   text(SOURCES.emojiTest),
   text(SOURCES.unicodeData),
   text(SOURCES.blocks),
   text(SOURCES.readme),
   json(SOURCES.cldrPackage),
-  json(SOURCES.cldr('base', 'en')),
-  json(SOURCES.cldr('derived', 'en')),
-  json(SOURCES.cldr('base', 'de')),
-  json(SOURCES.cldr('derived', 'de')),
+  ...['en', ...LANGS].flatMap((l) => [json(SOURCES.cldr('base', l)), json(SOURCES.cldr('derived', l))]),
 ])
 
 /** CLDR annotations per language, keyed by the character without VS16. */
@@ -73,7 +65,16 @@ function annotations(base, derived) {
   return out
 }
 const cldrEn = annotations(cldr[0], cldr[1])
-const cldrDe = annotations(cldr[2], cldr[3])
+const cldrLocal = Object.fromEntries(LANGS.map((l, i) => [l, annotations(cldr[2 + 2 * i], cldr[3 + 2 * i])]))
+/** Per language: name and keywords of every item (filled alongside `items`). */
+const local = Object.fromEntries(LANGS.map((l) => [l, { names: [], keywords: [] }]))
+function addLocal(ch) {
+  for (const l of LANGS) {
+    const a = cldrLocal[l].get(stripVS(ch))
+    local[l].names.push(a?.name ?? '')
+    local[l].keywords.push((a?.keywords ?? []).join('|'))
+  }
+}
 
 // ------------------------------------------------------------------ emoji
 
@@ -111,12 +112,13 @@ for (const line of emojiTest.split('\n')) {
   }
   if (toneCount > 1) continue // mixed tones (e.g. couples): too many to list
   const en = cldrEn.get(stripVS(ch))
-  const de = cldrDe.get(stripVS(ch))
-  items.push([ch, groupIndex(GROUPS_DE[group] ?? group), nameEn, de?.name ?? '', (en?.keywords ?? []).join('|'), (de?.keywords ?? []).join('|')])
+  items.push([ch, groupIndex(group), nameEn, (en?.keywords ?? []).join('|')])
+  addLocal(ch)
 }
 // keep tone lists only when all five tones exist
 for (const [k, v] of Object.entries(tones)) if (v.length !== 5) delete tones[k]
 const emojiCount = items.length
+if (groups.length !== 9) throw new Error(`expected 9 emoji groups, got ${groups.join(', ')}`) // EMOJI_GROUPS in search.ts
 
 // ------------------------------------------------------------------ symbols
 
@@ -136,25 +138,27 @@ for (const line of unicodeData.split('\n')) {
   const ch = String.fromCodePoint(cp)
   if (emojiChars.has(ch)) continue
   const en = cldrEn.get(ch)
-  const de = cldrDe.get(ch)
   const nameEn = f[1].toLowerCase()
-  items.push([ch, groupIndex(`Zeichen: ${blockOf(cp)}`), nameEn, de?.name ?? '', (en?.keywords ?? []).filter((k) => k.toLowerCase() !== nameEn).join('|'), (de?.keywords ?? []).join('|')])
+  items.push([ch, groupIndex(blockOf(cp)), nameEn, (en?.keywords ?? []).filter((k) => k.toLowerCase() !== nameEn).join('|')])
+  addLocal(ch)
 }
 
 // ------------------------------------------------------------------ write
 
 const unicodeVersion = /Version ([\d.]+) of the Unicode Standard/.exec(readme)?.[1] ?? /(\d+\.\d+\.\d+)/.exec(readme)?.[1] ?? '?'
 const data = {
-  source: 'Unicode emoji-test.txt, UnicodeData.txt, Blocks.txt; CLDR annotations (en, de)',
+  source: 'Unicode emoji-test.txt, UnicodeData.txt, Blocks.txt; CLDR annotations (en)',
   version: { emoji: emojiVersion, unicode: unicodeVersion, cldr: cldrPkg.version, built: new Date().toISOString().slice(0, 10) },
-  // item: [char, groupIndex, name (en), name (de), keywords en "a|b", keywords de "a|b"]
+  // groups: the 9 emoji groups, then the Unicode blocks of the symbols
+  // item: [char, groupIndex, name (en), keywords (en) "a|b"]
   groups,
   items,
   tones,
 }
 mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, JSON.stringify(data))
+for (const l of LANGS) writeFileSync(join(DIR, `unicode-${l}.json`), JSON.stringify({ lang: l, ...local[l] }))
 console.log(
-  `Fertig: ${emojiCount} Emojis, ${items.length - emojiCount} Symbole/Zeichen, ${Object.keys(tones).length} mit Hautfarben – ` +
-    `Emoji ${emojiVersion}, Unicode ${unicodeVersion}, CLDR ${cldrPkg.version}\n→ ${OUT}`,
+  `Done: ${emojiCount} emoji, ${items.length - emojiCount} symbols, ${Object.keys(tones).length} with skin tones – ` +
+    `Emoji ${emojiVersion}, Unicode ${unicodeVersion}, CLDR ${cldrPkg.version}\n→ ${DIR} (${['en', ...LANGS].join(', ')})`,
 )
