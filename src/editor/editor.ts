@@ -13,6 +13,7 @@ import { importMarkdown, exportMarkdown, NEW_DOC_META } from '../md/document'
 import { tableEditing, goToNextCell } from 'prosemirror-tables'
 import { buildInputRules } from './inputrules'
 import { searchPlugin } from './search'
+import { classifyPaste, pasteUrl } from './paste'
 import { openDialog } from './dialog'
 import { openPicker } from '../badges/picker'
 import { openEmojiPicker } from '../emoji/picker'
@@ -40,6 +41,8 @@ export interface EditorHooks {
   /** Let the user pick a local image; returns a Markdown path or null. */
   pickImage?: () => Promise<string | null>
   openExternal: (href: string) => void
+  /** Ctrl+V of image data (screenshot …): store it next to the document and insert it. */
+  pasteImage: (view: EditorView, image: File) => void
   onChange: (view: EditorView) => void
   extraKeys?: Record<string, Command>
 }
@@ -237,6 +240,15 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
           if (node?.type === N.list_item) view.dispatch(view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, checked: !node.attrs.checked }))
           return true
         },
+      },
+      // Ctrl+V of images and links (everything else: the normal HTML/Markdown paste)
+      handlePaste(view, event) {
+        if (!event.clipboardData) return false
+        const what = classifyPaste(event.clipboardData, !!view.state.selection.$from.parent.type.spec.code)
+        if (!what) return false
+        if ('image' in what) hooks.pasteImage(view, what.image)
+        else pasteUrl(view, what.url)
+        return true
       },
       handleDoubleClickOn(view, _pos, node, nodePos) {
         if (node.type === N.image) {

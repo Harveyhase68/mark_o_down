@@ -132,3 +132,46 @@ mod elevation_tests {
         assert_eq!(super::is_elevated(), admin);
     }
 }
+
+/// Name for a new file `<stem>.<ext>` in `dir` that doesn't exist yet
+/// (`image.png`, `image-2.png`, …).
+pub fn unique_file_name(dir: &Path, stem: &str, ext: &str) -> String {
+    let mut name = format!("{stem}.{ext}");
+    let mut n = 2;
+    while dir.join(&name).exists() {
+        name = format!("{stem}-{n}.{ext}");
+        n += 1;
+    }
+    name
+}
+
+/// Only plain names (letters, digits, `-`, `_`, `.`), no paths – for file names built from user input.
+pub fn is_plain_name(s: &str) -> bool {
+    !s.is_empty() && !s.starts_with('.') && s.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+
+    #[test]
+    fn unique_names_do_not_overwrite() {
+        let d = std::env::temp_dir().join(format!("mod_names_{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        assert_eq!(unique_file_name(&d, "image", "png"), "image.png");
+        std::fs::write(d.join("image.png"), b"x").unwrap();
+        std::fs::write(d.join("image-2.png"), b"x").unwrap();
+        assert_eq!(unique_file_name(&d, "image", "png"), "image-3.png");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn plain_names_only() {
+        assert!(is_plain_name("image-20260928_1.png"));
+        assert!(is_plain_name("bilder"));
+        assert!(!is_plain_name("../x"));
+        assert!(!is_plain_name("a/b"));
+        assert!(!is_plain_name(".hidden"));
+        assert!(!is_plain_name(""));
+    }
+}

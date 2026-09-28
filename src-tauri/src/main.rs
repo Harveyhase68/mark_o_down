@@ -84,6 +84,23 @@ fn write_text(path: String, text: String) -> Result<(), String> {
     mdfile::write_atomic(Path::new(&path), text.as_bytes()).map_err(|e| format!("{path}: {e}"))
 }
 
+/// Save a pasted image (base64) as `<dir>/<subdir>/<stem>.<ext>` without overwriting
+/// anything; returns the path relative to `dir` (e.g. `images/image-20260928-191530.png`).
+#[tauri::command]
+fn save_pasted_image(app: tauri::AppHandle, dir: String, subdir: String, stem: String, ext: String, data: String) -> Result<String, String> {
+    use base64::Engine as _;
+    if ![&subdir, &stem, &ext].iter().all(|s| paths::is_plain_name(s)) {
+        return Err("ungültiger Dateiname".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data.as_bytes()).map_err(|e| e.to_string())?;
+    let folder = PathBuf::from(&dir).join(&subdir);
+    std::fs::create_dir_all(&folder).map_err(|e| format!("{}: {e}", folder.display()))?;
+    let name = paths::unique_file_name(&folder, &stem, &ext);
+    mdfile::write_atomic(&folder.join(&name), &bytes).map_err(|e| format!("{}: {e}", folder.join(&name).display()))?;
+    allow_assets(&app, &folder);
+    Ok(format!("{subdir}/{name}"))
+}
+
 /// Image files in `dir` (relative paths), for the "own images" picker.
 #[tauri::command]
 fn list_images(app: tauri::AppHandle, dir: String) -> Vec<String> {
@@ -127,6 +144,7 @@ fn main() {
             read_markdown,
             write_markdown,
             write_text,
+            save_pasted_image,
             file_hash,
             recovery::recovery_write,
             recovery::recovery_clear,

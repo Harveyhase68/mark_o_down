@@ -301,3 +301,13 @@ export async function copyHtml(html: string): Promise<void> {
     throw new Error('Zwischenablage nicht verfügbar')
   }
 }
+
+// ------------------------------------------------------------------ pasted images
+
+/** Save image bytes as `<dir>/<subdir>/<stem>.<ext>` (never overwrites); returns the relative path. */
+export async function savePastedImage(dir: string, subdir: string, stem: string, ext: string, bytes: Uint8Array): Promise<string> {
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  return invoke<string>('save_pasted_image', { dir, subdir, stem, ext, data: btoa(binary) })
+}

@@ -13,6 +13,7 @@ import { printMarkdown } from './editor/print'
 import { createFindBar } from './editor/findbar'
 import { modalOpen } from './editor/modal'
 import { setupZoom } from './editor/zoom'
+import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
 import { createGuard } from './guard'
 import { Selection } from 'prosemirror-state'
@@ -67,6 +68,7 @@ const hooks: EditorHooks = {
       }
     : undefined,
   openExternal: (href) => void host.openExternal(href),
+  pasteImage: (v, image) => void pasteImage(v, image),
   onChange: () => {
     scheduleUpdate()
     guard.onChange()
@@ -338,6 +340,39 @@ function saveFile(saveAs: boolean): Promise<boolean> {
 /** Close = back to an empty, unsaved document. */
 async function closeDocument() {
   if (await confirmDiscard()) setDocument('', { path: null })
+}
+
+// ------------------------------------------------------------------ pasted images
+
+/** Folder next to the document where pasted images go. */
+const PASTE_FOLDER = 'images'
+
+async function pasteImage(v: EditorView, image: File) {
+  if (!host.isTauri) return flash('Bilder einfügen geht nur in der App (nicht in der Browser-Vorschau)')
+  // the image is stored next to the document – so the document needs a place first
+  if (!doc.path) {
+    const choice = await exclusive(() =>
+      askChoice(
+        'Bild einfügen',
+        `Das Bild wird als Datei neben dem Dokument gespeichert (Ordner „${PASTE_FOLDER}“). ` + 'Dafür muss das Dokument zuerst gespeichert werden.',
+        [
+          { label: 'Abbrechen', value: 'cancel' },
+          { label: 'Speichern…', value: 'save', primary: true },
+        ],
+      ),
+    )
+    if (choice !== 'save' || !(await saveFile(true)) || !doc.path) return
+  }
+  try {
+    const bytes = new Uint8Array(await image.arrayBuffer())
+    const rel = await host.savePastedImage(host.dirname(doc.path), PASTE_FOLDER, pastedImageStem(), imageExtension(image.type), bytes)
+    const node = v.state.schema.nodes.image.create({ src: host.encodePath(rel), alt: '' })
+    v.dispatch(v.state.tr.replaceSelectionWith(node, false).scrollIntoView())
+    v.focus()
+    flash(`Bild gespeichert: ${rel}`)
+  } catch (e) {
+    await host.showError(`Bild konnte nicht gespeichert werden:\n${e}`)
+  }
 }
 
 // ------------------------------------------------------------------ recently opened files
