@@ -12,6 +12,7 @@ import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
 import { createFindBar } from './editor/findbar'
 import { modalOpen } from './editor/modal'
+import { setupZoom } from './editor/zoom'
 import * as host from './platform'
 import { createGuard } from './guard'
 import { Selection } from 'prosemirror-state'
@@ -115,6 +116,8 @@ const toolbar = createToolbar($('#toolbar'), view, {
   sourceVisible: () => sourceVisible,
 })
 const findBar = createFindBar($('#workspace'), view)
+// Ctrl+wheel, Ctrl+Plus/Minus/0 and the "− 100 % +" control in the status bar
+setupZoom(editorEl, $('#scroller'), $('#zoom'))
 
 // ------------------------------------------------------------------ UI updates
 

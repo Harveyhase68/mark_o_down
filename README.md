@@ -38,7 +38,11 @@ clean Markdown.
   recently used, full 4-byte Unicode support.
 - **Images like on GitHub** – relative paths resolve from the document's folder, `/path` from the
   repository root. Drag & drop images and `.md` files into the window.
-- **Export** – standalone HTML file, HTML to the clipboard, print.
+- **Find & replace** with match case, whole word and regular expressions (`$1` groups).
+- **Safe** – changes by other programs are detected (reload or ask, never overwritten silently),
+  unsaved work is recovered after a crash, recently opened files in the Open menu.
+- **Open HTML** – converted to Markdown; a dialog lists exactly what Markdown can't keep.
+- **Export** – standalone HTML file, HTML to the clipboard, print. Document zoom 50–300 %.
 - Markdown shortcuts while typing (`# `, `- `, `1. `, `> `, `**bold**`, `[text](url)` …).
 
 ## Download
@@ -56,6 +60,8 @@ WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
 |---|---|
 | Open / Save / Save as | `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` |
 | Close document / Print | `Ctrl+W` / `Ctrl+P` |
+| Find / Find & replace / next / previous | `Ctrl+F` / `Ctrl+H` / `F3` / `Shift+F3` |
+| Zoom in / out / reset | `Ctrl+Mouse wheel`, `Ctrl+Plus` / `Ctrl+Minus` / `Ctrl+0` |
 | Export HTML | `Ctrl+Shift+E` |
 | Bold / Italic / Strikethrough / Code | `Ctrl+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
 | Link | `Ctrl+K` |
