@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mark O Down</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <!-- until the stylesheet is loaded: show nothing of the raw page -->
+    <style>
+      body:not(.ready) { visibility: hidden; }
+    </style>
+  </head>
+  <body>
+    <header id="toolbar" role="toolbar" aria-label="Formatierung"></header>
+    <main id="workspace">
+      <div id="scroller"><article id="editor"></article></div>
+      <aside id="source-pane" aria-label="Markdown-Quelltext">
+        <div class="pane-title">Markdown (Export-Vorschau, schreibgeschützt)</div>
+        <textarea id="source" readonly spellcheck="false"></textarea>
+      </aside>
+    </main>
+    <footer id="status"></footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

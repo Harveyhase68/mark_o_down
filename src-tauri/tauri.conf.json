@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mark O Down",
+  "version": "0.1.0",
+  "identifier": "dev.markodown.app",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Mark O Down",
+        "width": 1100,
+        "height": 800,
+        "minWidth": 480,
+        "minHeight": 320,
+        "resizable": true,
+        "visible": false,
+        "center": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "Alexander Predl",
+    "copyright": "Copyright © 2026 Alexander Predl",
+    "category": "Productivity",
+    "shortDescription": "WYSIWYG Markdown editor",
+    "longDescription": "Mark O Down – a minimal WYSIWYG Markdown editor. Edit .md files visually; untouched parts are saved byte-for-byte as they were.",
+    "homepage": "https://predl.cc/mark_o_down",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "Markdown",
+        "description": "Markdown document",
+        "role": "Editor",
+        "mimeType": "text/markdown"
+      }
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "both",
+        "languages": [
+          "German",
+          "English"
+        ],
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}
