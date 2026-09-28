@@ -6,6 +6,8 @@
 
 **A minimal WYSIWYG Markdown editor for Windows – edit `.md` files visually, save them byte-for-byte.**
 
+[![CI](https://github.com/Harveyhase68/mark_o_down/actions/workflows/ci.yml/badge.svg)](https://github.com/Harveyhase68/mark_o_down/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Harveyhase68/mark_o_down?include_prereleases)](https://github.com/Harveyhase68/mark_o_down/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
@@ -77,6 +79,22 @@ npm run tauri build    # release build + installer in src-tauri/target/release/b
 npm test               # round-trip, editor and search tests
 npm run unicode        # refresh the emoji/symbol data from unicode.org and CLDR
 ```
+
+## Releasing
+
+Releases are built by GitHub Actions ([`release.yml`](.github/workflows/release.yml)) when a version tag is pushed:
+
+```bash
+npm run release:version 0.2.0   # sets the version in package.json, Cargo.toml, tauri.conf.json …
+git commit -am "Release v0.2.0"
+git tag v0.2.0
+git push origin main v0.2.0
+```
+
+The workflow checks that the tag matches the version, runs the tests, builds the installer and
+creates a **draft** release with the setup attached – review it on GitHub and click *Publish*.
+Tags with a suffix (`v0.2.0-beta.1`) become pre-releases. Every push and pull request runs the
+test suite ([`ci.yml`](.github/workflows/ci.yml)).
 
 ## How it works
 

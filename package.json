@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
-    "unicode": "node scripts/build-unicode.mjs"
+    "unicode": "node scripts/build-unicode.mjs",
+    "release:version": "node scripts/set-version.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.0",
