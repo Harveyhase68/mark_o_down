@@ -1,5 +1,7 @@
 // Tiny modal form (link / image / raw Markdown editing).
 
+import { openModal } from './modal'
+
 export interface Field {
   name: string
   label: string
@@ -33,8 +35,6 @@ export function openDialog(opts: {
     { label: 'OK', value: 'ok', primary: true },
   ]
   return new Promise((resolve) => {
-    const backdrop = document.createElement('div')
-    backdrop.className = 'dialog-backdrop'
     const form = document.createElement('form')
     form.className = 'dialog'
     form.innerHTML = `<h2></h2><p class="message"></p><div class="fields"></div><div class="extra"></div><div class="buttons"></div>`
@@ -80,31 +80,25 @@ export function openDialog(opts: {
 
     const values = () => Object.fromEntries([...inputs].map(([k, v]) => [k, v.value]))
     const close = (result: DialogResult | null) => {
-      backdrop.remove()
+      modal.close()
       resolve(result)
     }
     form.addEventListener('submit', (e) => {
       e.preventDefault()
       close({ action: action === 'cancel' ? 'ok' : action, values: values() })
     })
-    backdrop.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        close(null)
-      }
-      // Ctrl+Enter submits multi-line fields
+    // Ctrl+Enter submits multi-line fields
+    form.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) form.requestSubmit()
     })
-    backdrop.addEventListener('mousedown', (e) => {
-      if (e.target === backdrop) close(null)
-    })
 
-    backdrop.append(form)
-    document.body.append(backdrop)
+    form.className = 'dialog'
+    const modal = openModal(form, { label: opts.title, onCancel: () => close(null) })
     const first = inputs.values().next().value
-    first?.focus()
-    if (!first) (form.querySelector('button.primary') as HTMLButtonElement | null)?.focus()
-    if (first instanceof HTMLInputElement) first.select()
+    if (first) {
+      first.focus()
+      if (first instanceof HTMLInputElement) first.select()
+    }
   })
 }
 

@@ -6,6 +6,7 @@
 
 import * as host from './platform'
 import { askChoice } from './editor/dialog'
+import { modalOpen } from './editor/modal'
 
 export interface GuardedDoc {
   path: string | null
@@ -42,7 +43,7 @@ export function createGuard(deps: GuardDeps) {
 
   async function checkDisk() {
     const doc = deps.doc()
-    if (!host.isTauri || !doc.path || checking || deps.busy() || document.querySelector('.dialog-backdrop')) return
+    if (!host.isTauri || !doc.path || checking || deps.busy() || modalOpen()) return
     checking = true
     try {
       const hash = await host.fileHash(doc.path)

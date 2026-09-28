@@ -2,6 +2,8 @@
 // recently used. Resolves with the character(s) to insert, or null.
 
 import { EMOJI_GROUPS, codepoints, prepare, search, type Entry, type UnicodeData } from './search'
+import { el, store } from '../editor/dom'
+import { openModal } from '../editor/modal'
 
 let cache: { data: UnicodeData; entries: Entry[] } | null = null
 async function load() {
@@ -18,43 +20,18 @@ const TONE_KEY = 'mod-emoji-tone'
 const TONE_SWATCHES = ['✋', '✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿']
 const TONE_NAMES = ['Standard', 'hell', 'mittelhell', 'mittel', 'mitteldunkel', 'dunkel']
 
-const store = {
-  get<T>(key: string, fallback: T): T {
-    try {
-      return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback
-    } catch {
-      return fallback
-    }
-  },
-  set(key: string, value: unknown) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      /* private mode etc. */
-    }
-  },
-}
-
 let lastGroup: number | 'recent' = 0
 let lastQuery = ''
 
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, ...children: (Node | string)[]) => {
-  const e = document.createElement(tag)
-  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v)
-  e.append(...children)
-  return e
-}
-
 export function openEmojiPicker(): Promise<string | null> {
   return new Promise((resolve) => {
-    const backdrop = el('div', { class: 'dialog-backdrop' })
-    const box = el('div', { class: 'emoji-picker', role: 'dialog', 'aria-label': 'Emoji & Zeichen einfügen' })
+    const box = el('div', { class: 'emoji-picker' })
     const closeX = el('button', { type: 'button', class: 'ep-x', title: 'Schließen (Esc)', 'aria-label': 'Schließen' }, '✕')
     const input = el('input', { type: 'search', placeholder: 'Suchen … z. B. sleep, lachen, pfeil, with, U+1F602', spellcheck: 'false' })
     const toneBox = el('div', { class: 'ep-tones', role: 'radiogroup', 'aria-label': 'Hautfarbe' })
     const tabs = el('nav', { class: 'ep-tabs' })
     const status = el('div', { class: 'ep-status' }, 'Lade Unicode-Daten …')
-    const grid = el('div', { class: 'ep-grid', role: 'listbox', tabindex: '-1' })
+    const grid = el('div', { class: 'ep-grid', role: 'listbox', tabindex: '0', 'aria-label': 'Zeichen – Pfeiltasten wählen, Enter fügt ein' })
     const big = el('div', { class: 'ep-big' })
     const info = el('div', { class: 'ep-info' })
     const cancel = el('button', { type: 'button' }, 'Abbrechen')
@@ -67,8 +44,7 @@ export function openEmojiPicker(): Promise<string | null> {
       grid,
       el('footer', {}, big, info, el('div', { class: 'buttons' }, cancel, ok)),
     )
-    backdrop.append(box)
-    document.body.append(backdrop)
+    const modal = openModal(box, { label: 'Emoji & Zeichen einfügen', onCancel: () => close(null) })
     input.value = lastQuery
     input.focus()
 
@@ -124,7 +100,7 @@ export function openEmojiPicker(): Promise<string | null> {
 
     // ------------------------------------------------------------ rendering
     function tile(e: Entry, i: number): HTMLButtonElement {
-      const b = el('button', { type: 'button', class: e.isEmoji ? 'ep-tile' : 'ep-tile ep-sym', role: 'option', title: e.nameDe || e.nameEn, 'data-i': String(i) }, withTone(e))
+      const b = el('button', { type: 'button', class: e.isEmoji ? 'ep-tile' : 'ep-tile ep-sym', role: 'option', title: e.nameDe || e.nameEn, 'data-i': String(i), tabindex: '-1' }, withTone(e))
       return b
     }
 
@@ -197,27 +173,26 @@ export function openEmojiPicker(): Promise<string | null> {
       const section = first?.parentElement
       return first && section ? Math.max(1, Math.floor(section.clientWidth / first.offsetWidth)) : 1
     }
-    const onKey = (e: KeyboardEvent) => {
+    // (Esc, Tab and click outside are handled by the modal frame)
+    box.addEventListener('keydown', (e) => {
       const k = e.key
-      if (k === 'Escape') return void (e.preventDefault(), close(null))
-      if (k === 'Enter') return void (e.preventDefault(), insert())
+      const onButton = (e.target as HTMLElement).tagName === 'BUTTON'
+      // Enter inserts – except on a focused button (Abbrechen, a tab …), which does its own thing
+      if (k === 'Enter' && !onButton) return void (e.preventDefault(), insert())
       const step = k === 'ArrowRight' ? 1 : k === 'ArrowLeft' ? -1 : k === 'ArrowDown' ? columns() : k === 'ArrowUp' ? -columns() : 0
       // in the search field left/right move the text cursor
-      if (step && !(e.target === input && Math.abs(step) === 1)) {
+      if (step && !onButton && !(e.target === input && Math.abs(step) === 1)) {
         e.preventDefault()
         select(Math.max(0, selected + step))
       }
-    }
-    document.addEventListener('keydown', onKey, true)
+    })
     cancel.onclick = () => close(null)
     closeX.onclick = () => close(null)
     ok.onclick = () => insert()
-    backdrop.addEventListener('mousedown', (e) => e.target === backdrop && close(null))
 
     function close(result: string | null) {
       clearTimeout(timer)
-      document.removeEventListener('keydown', onKey, true)
-      backdrop.remove()
+      modal.close()
       resolve(result)
     }
 

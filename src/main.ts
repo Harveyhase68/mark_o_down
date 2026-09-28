@@ -10,6 +10,7 @@ import { htmlToMarkdown } from './md/htmlImport'
 import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
 import { createFindBar } from './editor/findbar'
+import { modalOpen } from './editor/modal'
 import * as host from './platform'
 import { createGuard } from './guard'
 import { Selection } from 'prosemirror-state'
@@ -400,7 +401,7 @@ window.addEventListener(
   'keydown',
   (e) => {
     // dialogs (picker, config editor …) handle their own keys
-    if (document.querySelector('.dialog-backdrop')) return
+    if (modalOpen()) return
     const run = (fn: () => void) => {
       e.preventDefault()
       e.stopPropagation()
