@@ -184,8 +184,8 @@ export interface Editor {
   view: EditorView
   /** Replace the document; resets undo history. */
   load: (doc: PMNode) => void
-  /** Re-render images (after the document moved to another folder). */
-  refreshImages: () => void
+  /** Redraw images and raw elements (document moved to another folder, language switched). */
+  redrawNodeViews: () => void
 }
 
 export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
@@ -284,7 +284,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
       view.updateState(stateFor(doc))
       hooks.onChange(view)
     },
-    refreshImages() {
+    redrawNodeViews() {
       view.setProps({ nodeViews: nodeViews() })
     },
   }

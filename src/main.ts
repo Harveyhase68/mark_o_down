@@ -329,7 +329,7 @@ function saveFile(saveAs: boolean): Promise<boolean> {
       if (moved) {
         // "Save as" into another folder: relative images now resolve from there
         doc.root = host.dirname(path)
-        editor.refreshImages()
+        editor.redrawNodeViews()
       }
       doc.diskHash = hash
       doc.mixedEol = false
@@ -586,6 +586,7 @@ onLangChange(() => {
   toolbar = createToolbar($('#toolbar'), view, toolbarActions())
   toolbar.update()
   findBar.relabel()
+  editor.redrawNodeViews() // tooltips of raw elements
   zoom.relabel()
   applyStaticTexts()
   lastTitle = ''

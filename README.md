@@ -13,7 +13,7 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-**Version 0.2.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-020) · [Changelog](#changelog)
+**Version 0.3.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-030) · [Changelog](#changelog)
 
 </div>
 
@@ -21,18 +21,14 @@ Mark O Down is not a Markdown editor with a preview pane – the document *is* t
 headings, bold text, lists, links, images, tables and badges directly, and the file on disk stays
 clean Markdown.
 
-## What's new in 0.2.0
+## What's new in 0.3.0
 
-- 🔍 **Find & replace** – `Ctrl+F` / `Ctrl+H`, all matches highlighted, match case, whole word,
-  regular expressions with `$1` groups, *Replace all* as a single undo step.
-- 🛡️ **No more lost work** – changes made by other programs (git pull, another editor, cloud sync)
-  are detected and never overwritten without asking; after a crash or power loss your unsaved
-  changes are offered for recovery.
-- 🌐 **Open HTML files** – converted to Markdown; a dialog first lists exactly what Markdown can't keep.
-- 🕘 **Recently opened files** in the Open menu.
-- 🔎 **Zoom** – `Ctrl+Mouse wheel`, `Ctrl+Plus` / `Ctrl+Minus` / `Ctrl+0`, 50–300 %.
-- ⌨️ Dialogs keep the keyboard focus (Tab no longer jumps into the document behind them), plus
-  security, performance and bug fixes – see the [changelog](#changelog).
+- 🌍 **Five languages** – German, English, French, Spanish and Italian. Follows the Windows
+  language, switchable any time under *Help → Language* – no restart needed.
+- 📋 **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document
+  (`images/`) and inserts it; a pasted URL becomes a link, an image URL an image.
+- 😀 **Emoji search in your language** – `rire`, `risa`, `ridere` or `lachen` all find 😂.
+- The installer speaks all five languages – see the [changelog](#changelog).
 
 ## Features
 
@@ -66,7 +62,7 @@ clean Markdown.
 
 ## Download
 
-Get the installer **`Mark.O.Down_0.2.0_x64-setup.exe`** from the
+Get the installer **`Mark.O.Down_0.3.0_x64-setup.exe`** from the
 [latest release](https://github.com/Harveyhase68/mark_o_down/releases/latest) (Windows 10/11, 64-bit).
 It needs Microsoft Edge WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
 
@@ -147,7 +143,7 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
-### Unreleased
+### 0.3.0 – 2026-09-28
 
 **New**
 
