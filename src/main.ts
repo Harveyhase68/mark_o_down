@@ -5,9 +5,11 @@ import { importMarkdown, exportMarkdown, NEW_DOC_META, type DocMeta } from './md
 import { documentTitle, renderHtml, renderHtmlPage } from './md/html'
 import { createEditor, editImage, editLink, insertEmoji, type EditorHooks } from './editor/editor'
 import { createToolbar } from './editor/toolbar'
-import { askSaveChanges } from './editor/dialog'
+import { askChoice, askSaveChanges } from './editor/dialog'
+import { htmlToMarkdown } from './md/htmlImport'
 import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
+import { createFindBar } from './editor/findbar'
 import * as host from './platform'
 import { createGuard } from './guard'
 import { Selection } from 'prosemirror-state'
@@ -26,6 +28,8 @@ interface DocState {
   saved: PMNode | null
   /** Hash of the file on disk as loaded/saved – detects changes by other programs. */
   diskHash: string | null
+  /** Unsaved document created from a file (HTML import): where "Save" proposes to write. */
+  suggested: string | null
 }
 
 /** What we know about the file behind a document. */
@@ -36,6 +40,7 @@ interface FileInfo {
   bom?: boolean
   mixedEol?: boolean
   hash?: string | null
+  suggested?: string | null
 }
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T
@@ -49,8 +54,9 @@ let elevatedWarning = false
 let flashMessage: string | null = null
 
 const hooks: EditorHooks = {
-  docPath: () => doc?.path ?? null,
-  resolveImage: (src) => host.resolveImage(src, doc?.path ?? null, doc?.root ?? null),
+  // an imported (unsaved) document resolves images from where it came from
+  docPath: () => doc?.path ?? doc?.suggested ?? null,
+  resolveImage: (src) => host.resolveImage(src, doc?.path ?? doc?.suggested ?? null, doc?.root ?? null),
   pickImage: host.isTauri
     ? async () => {
         const file = await host.pickImagePath()
@@ -61,6 +67,7 @@ const hooks: EditorHooks = {
   onChange: () => {
     scheduleUpdate()
     guard.onChange()
+    findBar?.update()
   },
 }
 
@@ -100,15 +107,17 @@ const toolbar = createToolbar($('#toolbar'), view, {
   link: (v) => void editLink(v),
   image: (v) => void editImage(v, hooks),
   emoji: (v) => void insertEmoji(v),
+  find: () => findBar.open(false),
   toggleSource,
   sourceVisible: () => sourceVisible,
 })
+const findBar = createFindBar($('#workspace'), view)
 
 // ------------------------------------------------------------------ UI updates
 
 const isDirty = () => doc.saved === null || !view.state.doc.eq(doc.saved)
 const markdown = () => exportMarkdown(view.state.doc, doc.meta)
-const docName = () => (doc.path ? host.basename(doc.path) : 'Unbenannt.md')
+const docName = () => host.basename(doc.path ?? doc.suggested ?? 'Unbenannt.md')
 const withoutExt = (name: string) => name.replace(/\.[^.\\/]+$/, '')
 
 let updateQueued = false
@@ -129,7 +138,7 @@ function updateChrome() {
 
   const text = view.state.doc.textContent
   const words = (text.match(/[\p{L}\p{N}]+/gu) ?? []).length
-  const parts = [doc.path ?? 'Neues Dokument', `${words} Wörter`, doc.eol.toUpperCase(), doc.bom ? 'UTF-8 mit BOM' : 'UTF-8']
+  const parts = [doc.path ?? (doc.suggested ? `Neu (noch nicht gespeichert): ${doc.suggested}` : 'Neues Dokument'), `${words} Wörter`, doc.eol.toUpperCase(), doc.bom ? 'UTF-8 mit BOM' : 'UTF-8']
   if (doc.mixedEol) parts.push('⚠ gemischte Zeilenenden – werden beim Speichern vereinheitlicht')
   if (elevatedWarning) parts.unshift('⚠ Als Administrator gestartet – Windows blockiert Drag & Drop aus dem Explorer; App ohne Admin-Rechte starten')
   // Opened in a plain browser (e.g. the dev server URL): no real file access
@@ -173,6 +182,7 @@ function setDocument(text: string, file: FileInfo) {
     meta,
     saved: view.state.doc,
     diskHash: file.hash ?? null,
+    suggested: file.suggested ?? null,
   }
   editor.load(pm ?? view.state.schema.nodes.doc.create(null, view.state.schema.nodes.paragraph.create()))
   doc.saved = view.state.doc
@@ -204,10 +214,46 @@ function confirmDiscard(): Promise<boolean> {
 async function openPath(path: string) {
   try {
     const f = await host.readFile(path)
+    if (host.isHtmlFile(path)) return await importHtml(f)
     setDocument(f.text, f)
   } catch (e) {
     await host.showError(`Datei konnte nicht geöffnet werden:\n${e}`)
   }
+}
+
+/**
+ * HTML → new, unsaved Markdown document. Shows what Markdown can't keep first.
+ * The HTML file itself is never written: "Save" proposes <name>.md next to it.
+ */
+async function importHtml(f: host.MdFile) {
+  const name = host.basename(f.path)
+  const result = htmlToMarkdown(f.text)
+  if (result.losses.length) {
+    const MAX = 12
+    const list = result.losses
+      .slice(0, MAX)
+      .map((l) => `•  ${l.label}${l.count > 1 ? `  (${l.count}×)` : ''}`)
+      .join('\n')
+    const more = result.losses.length > MAX ? `\n•  … und ${result.losses.length - MAX} weitere` : ''
+    const choice = await exclusive(() =>
+      askChoice(
+        `„${name}“ als Markdown importieren?`,
+        `Markdown kann nicht alles darstellen, was HTML kann. Beim Import geht verloren:\n\n${list}${more}\n\n` +
+          'Erhalten bleiben Überschriften, Absätze, fett/kursiv, Links, Bilder, Listen, Tabellen, Code und Zitate – ' +
+          'sowie <div align="center">, <br> und <img> mit Größenangabe.\n\n' +
+          'Es entsteht ein neues Markdown-Dokument, die HTML-Datei bleibt unverändert.',
+        [
+          { label: 'Abbrechen', value: 'cancel' },
+          { label: 'Importieren', value: 'import', primary: true },
+        ],
+      ),
+    )
+    if (choice !== 'import') return
+  }
+  setDocument(result.markdown, { path: null, suggested: `${withoutExt(f.path)}.md`, root: f.root })
+  doc.saved = null // a new document: not saved yet
+  updateChrome()
+  flash(`„${name}“ als Markdown importiert – „Speichern“ legt ${withoutExt(name)}.md an`)
 }
 
 /** Re-read the current file (changed by another program), keeping cursor and scroll position. */
@@ -238,7 +284,7 @@ function saveFile(saveAs: boolean): Promise<boolean> {
     const text = markdown()
     if (!host.isTauri) return browserSave(text)
     let path = doc.path
-    if (saveAs || !path) path = await host.pickSavePath(doc.path)
+    if (saveAs || !path) path = await host.pickSavePath(doc.path ?? doc.suggested)
     if (!path) return false
     // the same file: it must still be the version we loaded (otherwise someone else changed it)
     const expected = path === doc.path ? doc.diskHash : null
@@ -261,6 +307,7 @@ function saveFile(saveAs: boolean): Promise<boolean> {
       }
       const moved = path !== doc.path
       doc.path = path
+      doc.suggested = null
       if (moved) {
         // "Save as" into another folder: relative images now resolve from there
         doc.root = host.dirname(path)
@@ -360,6 +407,8 @@ window.addEventListener(
       fn()
     }
     if (e.key === 'F1') return run(() => void host.openExternal(HELP_URL))
+    if (e.key === 'F3') return run(() => findBar.next(e.shiftKey ? -1 : 1))
+    if (e.key === 'Escape' && findBar.isOpen()) return run(() => findBar.close())
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return
     const k = e.key.toLowerCase()
     if (k === 's') run(() => void saveFile(e.shiftKey))
@@ -369,6 +418,8 @@ window.addEventListener(
     else if (k === 'p' && !e.shiftKey) run(() => void printDocument())
     else if (k === 'e' && e.shiftKey) run(() => void exportHtml())
     else if (k === 'm' && e.shiftKey) run(toggleSource)
+    else if (k === 'f' && !e.shiftKey) run(() => findBar.open(false))
+    else if (k === 'h' && !e.shiftKey) run(() => findBar.open(true))
   },
   true,
 )
@@ -400,7 +451,7 @@ async function setupWindow(view: EditorView) {
   await getCurrentWebview().onDragDropEvent(async (e) => {
     if (e.payload.type !== 'drop') return
     const paths = e.payload.paths
-    const md = paths.find((p) => /\.(md|markdown|mdown|mkd|txt)$/i.test(p))
+    const md = paths.find((p) => host.isMarkdownFile(p) || host.isHtmlFile(p))
     if (md) {
       if (await confirmDiscard()) await openPath(md)
       return

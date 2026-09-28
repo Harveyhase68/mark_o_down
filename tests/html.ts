@@ -19,5 +19,7 @@ export const toHtml = (md: string) =>
     // whitespace between block tags / line indentation inside inline HTML is irrelevant
     .replace(/\n[ \t]*/g, '\n')
     .replace(/\n+/g, '\n')
+    // whitespace at the very end of a link text may move just outside the link
+    .replace(/\s+<\/a>/g, '</a>')
     // `***x***` nests em/strong either way; the editor has no nesting order
     .replace(/<strong><em>([^<]*)<\/em><\/strong>/g, '<em><strong>$1</strong></em>')

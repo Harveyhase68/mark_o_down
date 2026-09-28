@@ -54,7 +54,7 @@ body {
 #toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
+  gap: 4px 6px;
   align-items: center;
   padding: 6px 10px;
   background: var(--paper);
@@ -69,7 +69,7 @@ body {
 }
 
 .tb-group + .tb-group {
-  padding-left: 10px;
+  padding-left: 6px;
   border-left: 1px solid var(--border);
 }
 
@@ -1315,4 +1315,126 @@ body.show-source #source-pane {
 
 .dialog.about a {
   color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- find & replace */
+
+/* the bar floats over the editor column (same grid cell), it doesn't scroll */
+#scroller,
+.findbar {
+  grid-area: 1 / 1;
+}
+
+#source-pane {
+  grid-area: 1 / 2;
+}
+
+.findbar {
+  z-index: 5;
+  align-self: start;
+  justify-self: end;
+  display: grid;
+  gap: 4px;
+  margin: 8px 20px 0 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+}
+
+.findbar[hidden] {
+  display: none;
+}
+
+.fb-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.fb-replace-row {
+  display: none;
+}
+
+.findbar.fb-with-replace .fb-replace-row {
+  display: flex;
+}
+
+.findbar input {
+  width: 240px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px var(--font);
+}
+
+.findbar input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.findbar.fb-error .fb-find,
+.findbar.fb-none .fb-find {
+  border-color: var(--danger);
+}
+
+.fb-count {
+  min-width: 86px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.findbar.fb-error .fb-count,
+.findbar.fb-none .fb-count {
+  color: var(--danger);
+}
+
+.findbar button {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font: 13px var(--font);
+  cursor: pointer;
+}
+
+.findbar button:hover:not(:disabled) {
+  background: var(--code-bg);
+}
+
+.findbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.findbar .fb-opt {
+  font: 600 12px var(--mono);
+}
+
+.findbar .fb-opt[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.fb-replace-row button {
+  border-color: var(--border);
+}
+
+.search-match {
+  background: rgb(255 200 0 / 0.35);
+  border-radius: 2px;
+}
+
+.search-current {
+  background: rgb(255 140 0 / 0.65);
+  outline: 1px solid rgb(230 110 0);
 }

@@ -12,6 +12,7 @@ import { tagAttrs } from '../md/htmlTags'
 import { importMarkdown, exportMarkdown, NEW_DOC_META } from '../md/document'
 import { tableEditing, goToNextCell } from 'prosemirror-tables'
 import { buildInputRules } from './inputrules'
+import { searchPlugin } from './search'
 import { openDialog } from './dialog'
 import { openPicker } from '../badges/picker'
 import { openEmojiPicker } from '../emoji/picker'
@@ -251,7 +252,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
 
   // a new nodeViews object makes ProseMirror redraw all node views
   const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView })
-  const plugins = [tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
+  const plugins = [searchPlugin, tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
   const stateFor = (doc: PMNode) => EditorState.create({ schema, doc, plugins })
 
   const view = new EditorView(mount, {

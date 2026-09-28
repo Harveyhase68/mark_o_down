@@ -20,7 +20,20 @@ export interface MdFile {
 
 export const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
-const MD_FILTER = [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] }]
+const MD_EXT = ['md', 'markdown', 'mdown', 'mkd', 'txt']
+const HTML_EXT = ['html', 'htm']
+const MD_FILTER = [{ name: 'Markdown', extensions: MD_EXT }]
+const OPEN_FILTER = [
+  { name: 'Markdown und HTML', extensions: [...MD_EXT, ...HTML_EXT] },
+  { name: 'Markdown', extensions: MD_EXT },
+  { name: 'HTML (wird nach Markdown umgewandelt)', extensions: HTML_EXT },
+]
+
+/** Files the editor opens: Markdown directly, HTML via conversion. */
+const extension = (p: string) => /\.([^.\\/]+)$/.exec(p)?.[1].toLowerCase() ?? ''
+export const isMarkdownFile = (p: string) => MD_EXT.includes(extension(p))
+export const isHtmlFile = (p: string) => HTML_EXT.includes(extension(p))
+
 const IMG_FILTER = [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'bmp', 'ico'] }]
 
 export async function readFile(path: string): Promise<MdFile> {
@@ -141,7 +154,7 @@ export async function initialFile(): Promise<string | null> {
 
 export async function pickMarkdown(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
-  const p = await open({ multiple: false, directory: false, filters: MD_FILTER })
+  const p = await open({ multiple: false, directory: false, filters: OPEN_FILTER })
   return typeof p === 'string' ? p : null
 }
 

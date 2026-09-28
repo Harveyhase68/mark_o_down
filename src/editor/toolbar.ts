@@ -60,6 +60,7 @@ const ICONS: Record<string, string> = {
   alignRight: svg('<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'),
   delTable: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/><path d="m13 13 6 6M19 13l-6 6" stroke-width="2.4"/>'),
   emoji: svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/>'),
+  find: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/>'),
   source: svg('<path d="M14 4 10 20M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
 }
 
@@ -95,6 +96,7 @@ export interface ToolbarActions {
   link: (view: EditorView) => void
   image: (view: EditorView) => void
   emoji: (view: EditorView) => void
+  find: () => void
   toggleSource: () => void
   sourceVisible: () => boolean
 }
@@ -155,7 +157,10 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
       { id: 'hr', title: 'Trennlinie', cmd: insertRule },
       { id: 'table', title: 'Tabelle einfügen', cmd: insertTable(), enabled: (s) => !isInTable(s) },
     ],
-    [{ id: 'source', title: 'Markdown-Quelltext anzeigen (Strg+Umschalt+M)', action: () => actions.toggleSource(), active: () => actions.sourceVisible() }],
+    [
+      { id: 'find', title: 'Suchen & Ersetzen (Strg+F / Strg+H)', action: () => actions.find() },
+      { id: 'source', title: 'Markdown-Quelltext anzeigen (Strg+Umschalt+M)', action: () => actions.toggleSource(), active: () => actions.sourceVisible() },
+    ],
   ] as (Button[] | 'heading')[]).map((g) => (g === 'heading' ? g : { buttons: g }))
 
   // Table tools, only shown while the cursor is in a table
