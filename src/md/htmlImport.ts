@@ -2,7 +2,7 @@
 //
 // Markdown can express much less than HTML. Kept: headings, paragraphs, bold/
 // italic/strikethrough, links, images, lists, tables, code, quotes, rules – and,
-// as HTML, `<div align="center">`, `<br>` and `<img>` with size/alignment.
+// as HTML, `<div align="center">`, `<br>`, `<sup>`/`<sub>`/`<mark>` and `<img>` with size/alignment.
 // Everything else is analysed first, so the user can be told what will be lost.
 
 import { fromHtml } from 'hast-util-from-html'
@@ -36,7 +36,7 @@ const KEPT: Record<string, string[]> = {
   img: ['src', 'alt', 'title', 'width', 'height', 'align'],
   br: [], hr: [], ul: [], ol: ['start'], li: [], blockquote: [], pre: [],
   table: [], thead: [], tbody: [], tfoot: [], tr: [], th: ['align'], td: ['align'],
-  div: ['align'], center: [],
+  div: ['align'], center: [], sup: [], sub: [], mark: [],
   html: ['lang'], head: [], body: [], title: [], meta: ['charset', 'name', 'content', 'http-equiv'],
 }
 
@@ -60,15 +60,12 @@ const REPLACED: Record<string, MessageKey> = {
   video: 'loss.video',
   audio: 'loss.audio',
   u: 'loss.u',
-  mark: 'loss.mark',
   input: 'loss.form',
   select: 'loss.form',
   textarea: 'loss.form',
   button: 'loss.button',
   dl: 'loss.dl',
   q: 'loss.q',
-  sup: 'loss.supsub',
-  sub: 'loss.supsub',
   details: 'loss.details',
   summary: 'loss.details',
 }
@@ -134,6 +131,12 @@ const center: Handle = (state, node) => {
   return [centerTag('<div align="center">'), ...children, centerTag('</div>')] as MNodes[]
 }
 
+/** `<sup>`, `<sub>`, `<mark>`: kept as (attribute-free) HTML tags – GitHub renders them. */
+const htmlTag: Handle = (state, node) => {
+  const tag = (node as Element).tagName
+  return [{ type: 'html', value: `<${tag}>` }, ...state.all(node as Element), { type: 'html', value: `</${tag}>` }] as MNodes[]
+}
+
 const IMG_ATTRS = ['src', 'alt', 'title', 'width', 'height', 'align']
 
 /** `<img>` with size or alignment stays an HTML tag (Markdown images have no size). */
@@ -178,7 +181,7 @@ function documentTitle(tree: HRoot): string | null {
 export function htmlToMarkdown(html: string): HtmlImport {
   const tree = fromHtml(html)
   const losses = analyseHtml(tree)
-  const mdast = toMdast(tree, { handlers: { div: center, center, img, iframe } })
+  const mdast = toMdast(tree, { handlers: { div: center, center, img, iframe, sup: htmlTag, sub: htmlTag, mark: htmlTag } })
   const markdown = stringifyMarkdown(mdast as MNodes)
   return { markdown: markdown ? markdown + '\n' : '', title: documentTitle(tree), losses }
 }

@@ -6,12 +6,16 @@
 
 import type { Mark, Node as PMNode } from 'prosemirror-model'
 import type * as M from 'mdast'
-import { schema } from './schema'
+import { HTML_TAG_MARKS, schema } from './schema'
 import { parseMarkdown, stringifyMarkdown } from './markdown'
 import { A_CLOSE, A_OPEN, BR, IMG, tagAttrs, tokenizeImageHtml, type HtmlToken } from './htmlTags'
 
 const S = schema.nodes
 const K = schema.marks
+
+/** `<sup>` / `<sub>` / `<mark>` opening tag (inline HTML) → the tag name. */
+const TAG_OPEN = /^<(sup|sub|mark)(?:\s[^<>]*)?>$/i
+const tagClose = (tag: string) => new RegExp(`^</${tag}\\s*>$`, 'i')
 
 const CENTER_OPEN = /^<div\s+align\s*=\s*(["']?)center\1\s*>$/i
 const CENTER_CLOSE = /^<\/div\s*>$/i
@@ -162,6 +166,9 @@ export class MdastToPM {
       case 'list':
         return this.list(node)
 
+      case 'footnoteDefinition':
+        return S.footnote_def.create({ label: node.label ?? node.identifier }, this.containerContent(node.children as M.RootContent[]))
+
       default:
         return this.raw(node)
     }
@@ -254,6 +261,19 @@ export class MdastToPM {
           continue
         }
       }
+      // `<sup>` … `</sup>` (also sub, mark): formatting, as long as the pair is in one place
+      const tag = node.type === 'html' ? TAG_OPEN.exec(node.value)?.[1].toLowerCase() : undefined
+      if (tag) {
+        const close = tagClose(tag)
+        const end = nodes.findIndex((n, j) => j > i && n.type === 'html' && close.test(n.value))
+        const nested = nodes.slice(i + 1, end).some((n) => n.type === 'html' && TAG_OPEN.exec(n.value)?.[1].toLowerCase() === tag)
+        if (end > i + 1 && !nested) {
+          const mark = K[HTML_TAG_MARKS[tag]].create({ open: (node as M.Html).value, close: (nodes[end] as M.Html).value })
+          out.push(...this.inlines(nodes.slice(i + 1, end), mark.addToSet(marks)))
+          i = end
+          continue
+        }
+      }
       this.inline(node, marks, out)
     }
     return out
@@ -300,13 +320,16 @@ export class MdastToPM {
       case 'break':
         out.push(S.hard_break.create({ spaces: this.firstChar(node) !== '\\' }, null, marks))
         return
+      case 'footnoteReference':
+        out.push(S.footnote_ref.create({ label: node.label ?? node.identifier }, null, marks))
+        return
       case 'html':
         if (BR.test(node.value)) out.push(S.hard_break.create({ html: node.value }, null, marks))
         else if (IMG.test(node.value)) out.push(imageFromTag(node.value, marks))
         else out.push(S.raw_inline.create({ value: node.value }, null, marks))
         return
       default: {
-        // footnoteReference and friends: keep verbatim
+        // anything else: keep verbatim
         const value = this.slice(node) || stringifyMarkdown({ type: 'paragraph', children: [node] })
         out.push(S.raw_inline.create({ value }, null, marks))
       }
@@ -316,7 +339,7 @@ export class MdastToPM {
   private wrap(children: M.PhrasingContent[], mark: Mark, marks: readonly Mark[], out: PMNode[]) {
     const inner = mark.addToSet(marks)
     const before = out.length
-    for (const c of children) this.inline(c, inner, out)
+    out.push(...this.inlines(children, inner))
     // Empty emphasis/link like `[](url)`: keep as raw so it survives.
     if (out.length === before) out.push(S.raw_inline.create({ value: '' }, null, inner))
   }

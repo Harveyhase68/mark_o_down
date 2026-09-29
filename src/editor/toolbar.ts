@@ -21,6 +21,7 @@ import {
   toggleList,
   toggleTask,
 } from './commands'
+import { insertFootnote } from './footnotes'
 
 const N = schema.nodes
 const K = schema.marks
@@ -40,6 +41,10 @@ const ICONS: Record<string, string> = {
   italic: svg('<path d="M14 4h-4M14 20h-4M15 4 9 20"/>'),
   strike: svg('<path d="M4 12h16M16 6.5A4 3 0 0 0 12 4c-2.5 0-4 1.3-4 3 0 1.3.8 2.3 2.5 3M8 17.5A4 3 0 0 0 12 20c2.5 0 4-1.3 4-3 0-.7-.2-1.3-.6-1.8"/>'),
   code: svg('<path d="m8 7-5 5 5 5M16 7l5 5-5 5"/>'),
+  sup: svg('<path d="m4 8 8 11M12 8l-8 11M16 4.5a2 2 0 0 1 4 .5c0 1.5-4 2.5-4 4.5h4"/>'),
+  sub: svg('<path d="m4 5 8 11M12 5 4 16M16 15.5a2 2 0 0 1 4 .5c0 1.5-4 2.5-4 4.5h4"/>'),
+  highlight: svg('<path d="m9 11-5 5v3h3l5-5M9 11l4-7 7 7-7 4z"/><path d="M4 21h16" opacity=".45" stroke-width="3"/>'),
+  footnote: svg('<path d="M4 7h10M4 12h10M4 17h6"/><path d="M18 4v6M16.5 5.5 18 4" stroke-width="1.8"/>'),
   bullet: svg('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/>'),
   ordered: svg('<path d="M10 6h10M10 12h10M10 18h10M4 4h1v4M4 8h2M6 18H4l2-2.5a1.2 1.2 0 0 0-2-1"/>'),
   task: svg('<rect x="3" y="4" width="6" height="6" rx="1"/><path d="m4.5 16 1.5 1.5 3-3M13 7h8M13 16h8"/>'),
@@ -149,6 +154,9 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
       { id: 'italic', title: tip('tb.italic', 'Ctrl+I'), cmd: toggleMark(K.em), active: (s) => markActive(s, K.em) },
       { id: 'strike', title: tip('tb.strike', 'Ctrl+Shift+X'), cmd: toggleMark(K.strike), active: (s) => markActive(s, K.strike) },
       { id: 'code', title: tip('tb.code', 'Ctrl+E'), cmd: toggleMark(K.code), active: (s) => markActive(s, K.code) },
+      { id: 'sup', title: tip('tb.sup'), cmd: toggleMark(K.sup), active: (s) => markActive(s, K.sup) },
+      { id: 'sub', title: tip('tb.sub'), cmd: toggleMark(K.sub), active: (s) => markActive(s, K.sub) },
+      { id: 'highlight', title: tip('tb.highlight'), cmd: toggleMark(K.highlight), active: (s) => markActive(s, K.highlight) },
     ],
     [
       { id: 'bullet', title: tip('tb.bullet', 'Ctrl+Shift+8'), cmd: toggleList(N.bullet_list), active: inList(N.bullet_list) },
@@ -162,6 +170,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
       { id: 'image', title: tip('tb.image'), action: (v) => actions.image(v) },
       { id: 'emoji', title: tip('tb.emoji', 'Ctrl+.'), action: (v) => actions.emoji(v) },
       { id: 'codeblock', title: tip('tb.codeblock'), cmd: toggleCodeBlock },
+      { id: 'footnote', title: tip('tb.footnote', 'Ctrl+Alt+F'), cmd: insertFootnote },
       { id: 'hr', title: tip('tb.hr'), cmd: insertRule },
       { id: 'table', title: tip('tb.table'), cmd: insertTable(), enabled: (s) => !isInTable(s) },
     ],

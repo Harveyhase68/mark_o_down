@@ -32,11 +32,15 @@ clean Markdown.
 ## Features
 
 - **True WYSIWYG** for CommonMark + GitHub Flavored Markdown: headings, bold/italic/strikethrough,
-  inline code, code blocks, bullet/numbered/task lists, quotes, links, images, horizontal rules, tables.
+  inline code, code blocks, bullet/numbered/task lists, quotes, links, images, horizontal rules, tables,
+  footnotes – plus superscript, subscript and highlight as the HTML tags GitHub renders
+  (`<sup>`, `<sub>`, `<mark>`).
+- **Syntax highlighting** in fenced code blocks (` ```js `, ` ```rust ` …, ~40 languages), in GitHub's
+  colours – also in the HTML export and when printing. Loaded only when a document has code.
 - **Lossless round-trip** – open → save without edits is byte-identical. When you edit, only the
   changed blocks are rewritten, in their original style (`*` vs `-` bullets, `__bold__` vs `**bold**`,
   `~~~` vs ```` ``` ```` fences, compact `|---|` vs aligned tables …). BOM and CRLF/LF line endings are kept.
-- **Everything else is preserved** – HTML, footnotes, front matter and other constructs the editor
+- **Everything else is preserved** – other HTML, front matter and constructs the editor
   doesn't edit visually are kept verbatim and shown as editable raw blocks.
 - **README-friendly HTML** – `<div align="center">`, `<br>` and `<img width="…">` / `<a><img></a>`
   logos are rendered and editable.
@@ -73,8 +77,10 @@ Get the right file from the [latest release](https://github.com/Harveyhase68/mar
 
 The apps are not code-signed yet:
 
-- **Windows:** *"Windows protected your PC"* → click **More info → Run anyway**. The app needs
-  Microsoft Edge WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
+- **Windows:** *"Windows protected your PC"* → click **More info → Run anyway**. The installer asks
+  whether to install for you only or for all users (`C:\Program Files`, needs administrator rights;
+  unattended: `/S /ALLUSERS`). The app needs Microsoft Edge WebView2, which is part of Windows 10/11
+  (the installer fetches it if missing).
 - **macOS:** the first time, right-click the app → **Open** (or *System Settings → Privacy & Security →
   Open Anyway*). If macOS says the app *"is damaged"*, run
   `xattr -dr com.apple.quarantine "/Applications/Mark O Down.app"` in Terminal.
@@ -99,6 +105,7 @@ right keys for your system.
 | Bold / Italic / Strikethrough / Code | `Ctrl+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
 | Link | `Ctrl+K` |
 | Emoji & symbols | `Ctrl+.` |
+| Footnote | `Ctrl+Alt+F` (double-click a footnote number: go to the note) |
 | Headings / Paragraph | `Ctrl+Alt+1…3` / `Ctrl+Alt+0` |
 | Bullet / numbered list / quote | `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+9` |
 | Indent / outdent list item, next table cell | `Tab` / `Shift+Tab` |
@@ -149,7 +156,8 @@ test suite on Windows, macOS and Linux ([`ci.yml`](.github/workflows/ci.yml)).
 - **Parsing/serializing:** [remark](https://github.com/remarkjs/remark) (micromark, mdast, GFM) –
   100 % CommonMark compliant.
 - **Editor:** [ProseMirror](https://prosemirror.net) with a schema that contains exactly the Markdown
-  constructs, plus [prosemirror-tables](https://github.com/ProseMirror/prosemirror-tables).
+  constructs, plus [prosemirror-tables](https://github.com/ProseMirror/prosemirror-tables);
+  code colouring by [highlight.js](https://highlightjs.org) (BSD-3-Clause), loaded on demand.
 - **Round-trip:** every top-level block (and every item of a top-level list) remembers its original
   source and its canonical serialization at load time. On save, an unchanged block is written back
   from the original bytes; only edited blocks are re-serialized.
@@ -160,6 +168,23 @@ The test suite round-trips its fixtures and all README files in `node_modules` b
 checks that full re-serialization renders identical HTML.
 
 ## Changelog
+
+### Unreleased
+
+**New**
+
+- **Footnotes** (`[^1]`) are shown and edited like on GitHub: the reference shows the number GitHub
+  would show (by order of first reference, whatever the label), its note as tooltip; double-click
+  jumps to the note. *Insert footnote* (`Ctrl+Alt+F`) adds the next number and its note at the end.
+- **Superscript, subscript and highlight** – `<sup>`, `<sub>`, `<mark>` are shown as formatting and
+  have toolbar buttons. They are written as these HTML tags because that is what GitHub renders
+  (`2^3^` / `H~2~O` / `==x==` are not GitHub Markdown). Tags with attributes are kept as they are;
+  importing HTML keeps them too.
+- **Syntax highlighting** of fenced code blocks with a language (~40 languages via highlight.js,
+  GitHub colours, light and dark) – in the editor, the HTML export and print. The highlighter is
+  loaded only when needed; the installer grows by about 50 KB.
+- More Markdown file extensions: `.mdown`, `.mkd`, `.mkdn`, `.mdwn` open directly and are
+  registered by the installers (with `.md` and `.markdown`).
 
 ### 0.4.0 – 2026-09-29
 

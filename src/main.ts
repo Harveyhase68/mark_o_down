@@ -12,6 +12,7 @@ import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
 import { createFindBar } from './editor/findbar'
 import { modalOpen } from './editor/modal'
+import { loadHighlighter } from './editor/highlight'
 import { setupZoom } from './editor/zoom'
 import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
@@ -425,7 +426,8 @@ async function openRecent(path: string) {
 const htmlTitle = () => documentTitle(markdown(), withoutExt(docName()))
 
 async function exportHtml() {
-  const page = renderHtmlPage(markdown(), htmlTitle(), getLang())
+  const highlight = await loadHighlighter().catch(() => undefined)
+  const page = renderHtmlPage(markdown(), htmlTitle(), getLang(), highlight)
   if (!host.isTauri) return download(page, `${withoutExt(docName())}.html`, 'text/html')
   const path = await host.pickHtmlSavePath(`${withoutExt(doc.path ?? docName())}.html`)
   if (!path) return
@@ -584,7 +586,6 @@ function applyStaticTexts() {
     ['table', 'block.table'],
     ['front-matter', 'block.frontMatter'],
     ['definition', 'block.definition'],
-    ['footnote', 'block.footnote'],
   ]
   for (const [name, key] of labels) document.documentElement.style.setProperty(`--lbl-${name}`, JSON.stringify(t(key)))
 }

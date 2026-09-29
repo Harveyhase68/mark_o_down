@@ -73,3 +73,15 @@ describe('HTML import', () => {
     expect(norm(back.markdown)).toBe(norm(md))
   })
 })
+
+describe('HTML import of <sup>, <sub>, <mark>', () => {
+  it('keeps them as tags GitHub renders, and the editor shows them as formatting', () => {
+    const r = htmlToMarkdown('<p>H<sub>2</sub>O, E=mc<sup>2</sup> and <mark class="x">hi</mark></p>')
+    expect(r.markdown).toBe('H<sub>2</sub>O, E=mc<sup>2</sup> and <mark>hi</mark>\n')
+    expect(r.losses.map((l) => l.label)).toEqual(['CSS-Klassen (class="…")'])
+    const { doc } = importMarkdown(r.markdown)
+    const marks = new Set<string>()
+    doc.descendants((n) => n.marks.forEach((m) => marks.add(m.type.name)))
+    expect([...marks].sort()).toEqual(['highlight', 'sub', 'sup'])
+  })
+})

@@ -23,3 +23,16 @@ describe('HTML export', () => {
     expect(page).toContain('<article class="markdown-body">')
   })
 })
+
+describe('HTML export with syntax highlighting', () => {
+  it('colours code blocks with a known language, leaves others alone', async () => {
+    const { loadHighlighter } = await import('../src/editor/highlight')
+    const h = await loadHighlighter()
+    const html = renderHtml('```js\nconst a = "x"\n```\n\n```\nplain < text\n```\n\n```nosuchlang\nx\n```\n', h)
+    expect(html).toContain('<span class="hljs-keyword">const</span>')
+    expect(html).toContain('<span class="hljs-string">&quot;x&quot;</span>')
+    expect(html).toContain('<code>plain &#x3C; text\n</code>')
+    expect(html).toContain('<code class="language-nosuchlang">x\n</code>')
+    expect(renderHtml('```js\nconst a\n```\n')).not.toContain('hljs')
+  })
+})

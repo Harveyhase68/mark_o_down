@@ -56,7 +56,11 @@
       {
         "ext": [
           "md",
-          "markdown"
+          "markdown",
+          "mdown",
+          "mkd",
+          "mkdn",
+          "mdwn"
         ],
         "name": "Markdown",
         "description": "Markdown document",

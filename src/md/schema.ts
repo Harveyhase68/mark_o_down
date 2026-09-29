@@ -1,5 +1,5 @@
 // ProseMirror schema: exactly the Markdown constructs we edit visually.
-// Everything else (other HTML, footnotes, front matter, …) is kept as raw
+// Everything else (other HTML, front matter, …) is kept as raw
 // Markdown in `raw_block` / `raw_inline` so nothing is ever lost.
 //
 // Attributes prefixed with `md` are round-trip bookkeeping (original source,
@@ -113,7 +113,18 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: (node) => ['pre', { 'data-lang': node.attrs.lang || '' }, ['code', 0]],
   },
 
-  // Markdown we don't edit structurally (table, html, footnote definition, …).
+  // GFM footnote `[^label]: …`. Shown where it is in the source; numbered (like
+  // GitHub, by first reference) with decorations, see editor/footnotes.ts.
+  footnote_def: {
+    group: 'block',
+    content: 'block+',
+    defining: true,
+    attrs: { label: { default: '1' }, ...srcAttrs },
+    parseDOM: [{ tag: 'div[data-footnote-def]', getAttrs: (dom) => ({ label: (dom as HTMLElement).getAttribute('data-footnote-def') }) }],
+    toDOM: (node) => ['div', { 'data-footnote-def': node.attrs.label, class: 'fn-def' }, 0],
+  },
+
+  // Markdown we don't edit structurally (html, front matter, …).
   // Its text *is* the Markdown source and is written back verbatim.
   raw_block: {
     group: 'block',
@@ -195,7 +206,18 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: () => ['span', { class: 'soft-break' }, ' '],
   },
 
-  // Inline Markdown we don't edit structurally (inline HTML, footnote refs, …).
+  // GFM footnote reference `[^label]`
+  footnote_ref: {
+    group: 'inline',
+    inline: true,
+    atom: true,
+    attrs: { label: { default: '1' } },
+    leafText: (node) => `[^${node.attrs.label}]`,
+    parseDOM: [{ tag: 'sup[data-footnote]', getAttrs: (dom) => ({ label: (dom as HTMLElement).getAttribute('data-footnote') }) }],
+    toDOM: (node) => ['sup', { 'data-footnote': node.attrs.label, class: 'fn-ref' }, ['span', { class: 'fn-label' }, node.attrs.label]],
+  },
+
+  // Inline Markdown we don't edit structurally (other inline HTML, …).
   raw_inline: {
     group: 'inline',
     inline: true,
@@ -223,6 +245,10 @@ const marks: Record<string, MarkSpec> = {
     parseDOM: [{ tag: 's' }, { tag: 'del' }, { tag: 'strike' }],
     toDOM: () => ['del', 0],
   },
+  // `<sup>`, `<sub>`, `<mark>`: HTML tags GitHub renders; the original tags are kept
+  sup: htmlTagMark('sup', 'sup sub'),
+  sub: htmlTagMark('sub', 'sup sub'),
+  highlight: htmlTagMark('mark'),
   link: {
     attrs: { href: { default: '' }, title: { default: null }, ref: { default: null }, literal: { default: false }, nest: { default: null }, html: { default: null } },
     inclusive: false,
@@ -234,5 +260,19 @@ const marks: Record<string, MarkSpec> = {
     toDOM: () => ['code', 0],
   },
 }
+
+/** Formatting written as an HTML tag pair (`<sup>2</sup>`). */
+function htmlTagMark(tag: string, excludes?: string): MarkSpec {
+  return {
+    attrs: { open: { default: `<${tag}>` }, close: { default: `</${tag}>` } },
+    excludes,
+    // a footnote reference is a <sup> too
+    parseDOM: [{ tag, getAttrs: (dom) => ((dom as HTMLElement).hasAttribute('data-footnote') ? false : null) }],
+    toDOM: () => [tag, 0],
+  }
+}
+
+/** Marks written as HTML tags, by tag name. */
+export const HTML_TAG_MARKS: Record<string, string> = { sup: 'sup', sub: 'sub', mark: 'highlight' }
 
 export const schema = new Schema({ nodes, marks })

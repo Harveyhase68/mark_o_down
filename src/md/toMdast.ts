@@ -54,10 +54,15 @@ function blockNode(node: PMNode): M.RootContent | null {
       return { ...listShell(node), children: items(node) }
     case 'table':
       return table(node)
+    case 'footnote_def':
+      return { type: 'footnoteDefinition', identifier: footnoteId(a.label), label: a.label, children: flow(node) as M.BlockContent[] }
     default:
       throw new Error(`Unknown block node: ${node.type.name}`)
   }
 }
+
+/** mdast identifier of a footnote label (normalized like CommonMark labels). */
+const footnoteId = (label: string) => label.replace(/\s+/g, ' ').trim().toLowerCase()
 
 export function flow(node: PMNode): M.RootContent[] {
   const out: M.RootContent[] = []
@@ -110,9 +115,10 @@ interface Item {
   code: boolean
 }
 
-// Whitespace may stay inside an HTML `<a>` (only Markdown delimiters care about it).
-const isHtmlLink = (m: Mark) => m.type.name === 'link' && !!m.attrs.html
-const intersect = (a: readonly Mark[], b: readonly Mark[]) => a.filter((m) => isHtmlLink(m) || b.some((n) => n.eq(m)))
+// Whitespace may stay inside HTML tags like `<a>` or `<sup>` (only Markdown delimiters care about it).
+const HTML_MARKS = new Set(['sup', 'sub', 'highlight'])
+const isHtmlMark = (m: Mark) => HTML_MARKS.has(m.type.name) || (m.type.name === 'link' && !!m.attrs.html)
+const intersect = (a: readonly Mark[], b: readonly Mark[]) => a.filter((m) => isHtmlMark(m) || b.some((n) => n.eq(m)))
 
 /** Move leading/trailing whitespace out of formatting: `** a **` is not bold in Markdown. */
 function normalizeWhitespace(list: Item[]): Item[] {
@@ -134,7 +140,7 @@ function markToParent(mark: Mark): M.Parent & M.PhrasingContent {
   const a = mark.attrs
   switch (mark.type.name) {
     case 'link':
-      if (a.html) return { type: 'mdoHtmlLink', open: syncTag(a.html, { href: a.href, title: a.title }), children: [] } as unknown as M.Link
+      if (a.html) return { type: 'mdoHtmlTag', open: syncTag(a.html, { href: a.href, title: a.title }), close: '</a>', children: [] } as unknown as M.Link
       return a.ref
         ? { type: 'linkReference', identifier: a.ref.identifier, label: a.ref.label, referenceType: a.ref.referenceType, children: [] }
         : ({ type: 'link', url: a.href, title: a.title || null, children: [], data: mdo({ literal: a.literal || undefined }) } as M.Link)
@@ -144,6 +150,10 @@ function markToParent(mark: Mark): M.Parent & M.PhrasingContent {
       return { type: 'emphasis', children: [], data: mdo({ marker: a.marker }) } as M.Emphasis
     case 'strike':
       return { type: 'delete', children: [] }
+    case 'sup':
+    case 'sub':
+    case 'highlight':
+      return { type: 'mdoHtmlTag', open: a.open, close: a.close, children: [] } as unknown as M.Link
     default:
       throw new Error(`Unknown mark: ${mark.type.name}`)
   }
@@ -222,11 +232,14 @@ export function phrasing(parent: PMNode, inTable = false): M.PhrasingContent[] {
       case 'raw_inline':
         c.push({ type: 'html', value: a.value })
         break
+      case 'footnote_ref':
+        c.push({ type: 'footnoteReference', identifier: footnoteId(a.label), label: a.label })
+        break
       default:
         throw new Error(`Unknown inline node: ${it.node.type.name}`)
     }
   })
-  return expandHtmlLinks(root)
+  return expandHtmlTags(root)
 }
 
 /**
@@ -262,19 +275,23 @@ function htmlBlockValue(node: PMNode): string | null {
   return out
 }
 
-/** An HTML-written link is a temporary parent while nesting marks; emit it as `<a …>` … `</a>`. */
-interface HtmlLink {
-  type: 'mdoHtmlLink'
+/**
+ * Formatting written as HTML (`<a href>`, `<sup>`, `<mark>` …) is a temporary parent
+ * while nesting marks; emit it as opening tag … closing tag.
+ */
+interface HtmlTag {
+  type: 'mdoHtmlTag'
   open: string
+  close: string
   children: M.PhrasingContent[]
 }
 
-function expandHtmlLinks(nodes: M.PhrasingContent[]): M.PhrasingContent[] {
+function expandHtmlTags(nodes: M.PhrasingContent[]): M.PhrasingContent[] {
   const out: M.PhrasingContent[] = []
-  for (const n of nodes as (M.PhrasingContent | HtmlLink)[]) {
-    if (n.type === 'mdoHtmlLink') out.push({ type: 'html', value: n.open }, ...expandHtmlLinks(n.children), { type: 'html', value: '</a>' })
+  for (const n of nodes as (M.PhrasingContent | HtmlTag)[]) {
+    if (n.type === 'mdoHtmlTag') out.push({ type: 'html', value: n.open }, ...expandHtmlTags(n.children), { type: 'html', value: n.close })
     else {
-      if ('children' in n) n.children = expandHtmlLinks(n.children as M.PhrasingContent[]) as never
+      if ('children' in n) n.children = expandHtmlTags(n.children as M.PhrasingContent[]) as never
       out.push(n)
     }
   }

@@ -8,17 +8,43 @@ import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
+import type { Element, Root as HRoot, RootContent as HContent } from 'hast'
+import type { HLJSApi } from 'highlight.js'
 
-const processor = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkFrontmatter, ['yaml', 'toml']) // front matter is metadata, not content
-  .use(remarkRehype, { allowDangerousHtml: true })
-  .use(rehypeStringify, { allowDangerousHtml: true })
+/** Colour fenced code blocks with highlight.js (classes as on GitHub, see PAGE_CSS). */
+function rehypeHighlight(h: HLJSApi) {
+  return (tree: HRoot) => {
+    const visit = (node: HRoot | HContent) => {
+      if (node.type !== 'root' && node.type !== 'element') return
+      if (node.type === 'element' && node.tagName === 'pre') {
+        const code = node.children[0] as Element | undefined
+        const cls = code?.type === 'element' && code.tagName === 'code' ? ((code.properties.className as string[] | undefined) ?? []) : []
+        const lang = cls.find((c) => c.startsWith('language-'))?.slice(9).toLowerCase()
+        if (code && lang && h.getLanguage(lang)) {
+          const text = code.children.map((c) => (c.type === 'text' ? c.value : '')).join('')
+          code.children = [{ type: 'raw', value: h.highlight(text, { language: lang, ignoreIllegals: true }).value } as unknown as HContent as Element]
+        }
+        return
+      }
+      node.children.forEach(visit)
+    }
+    visit(tree)
+  }
+}
 
-/** HTML fragment of the document body. */
-export function renderHtml(markdown: string): string {
-  return String(processor.processSync(markdown)).trim()
+const processor = (highlight?: HLJSApi) => {
+  const p = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkFrontmatter, ['yaml', 'toml']) // front matter is metadata, not content
+    .use(remarkRehype, { allowDangerousHtml: true })
+  return (highlight ? p.use(rehypeHighlight, highlight) : p).use(rehypeStringify, { allowDangerousHtml: true })
+}
+const plain = processor()
+
+/** HTML fragment of the document body; with `highlight`, code blocks are coloured. */
+export function renderHtml(markdown: string, highlight?: HLJSApi): string {
+  return String((highlight ? processor(highlight) : plain).processSync(markdown)).trim()
 }
 
 /** Title for a standalone page: first heading, else the file name. */
@@ -31,7 +57,7 @@ export function documentTitle(markdown: string, fallback: string): string {
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 /** Complete HTML page with an embedded GitHub-like stylesheet (no external files). */
-export function renderHtmlPage(markdown: string, title: string, lang = 'de'): string {
+export function renderHtmlPage(markdown: string, title: string, lang = 'de', highlight?: HLJSApi): string {
   return `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -45,7 +71,7 @@ ${PAGE_CSS}
 </head>
 <body>
 <article class="markdown-body">
-${renderHtml(markdown)}
+${renderHtml(markdown, highlight)}
 </article>
 </body>
 </html>
@@ -78,8 +104,21 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 .markdown-body .footnotes { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 .markdown-body [align="center"] { text-align: center; }
 .markdown-body [align="center"] > table { margin-left: auto; margin-right: auto; }
+/* code colours like GitHub */
+.hljs-keyword, .hljs-doctag, .hljs-template-tag, .hljs-variable.language_, .hljs-meta .hljs-keyword { color: var(--hl-keyword); }
+.hljs-title, .hljs-title.class_, .hljs-title.function_ { color: var(--hl-title); }
+.hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id, .hljs-section { color: var(--hl-constant); }
+.hljs-regexp, .hljs-string, .hljs-meta .hljs-string { color: var(--hl-string); }
+.hljs-built_in, .hljs-symbol, .hljs-type { color: var(--hl-builtin); }
+.hljs-comment, .hljs-code, .hljs-formula { color: var(--hl-comment); }
+.hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo, .hljs-tag { color: var(--hl-tag); }
+.hljs-bullet { color: var(--hl-bullet); } .hljs-emphasis { font-style: italic; } .hljs-strong, .hljs-section { font-weight: 600; }
+.hljs-addition { color: var(--hl-tag); background: var(--hl-add-bg); } .hljs-deletion { color: var(--hl-keyword); background: var(--hl-del-bg); }
+:root { --hl-keyword: #cf222e; --hl-title: #8250df; --hl-constant: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #59636e; --hl-tag: #116329; --hl-bullet: #3b2300; --hl-add-bg: #dafbe1; --hl-del-bg: #ffebe9; }
+@media (prefers-color-scheme: dark) { :root { --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-constant: #79c0ff; --hl-string: #a5d6ff; --hl-builtin: #ffa657; --hl-comment: #9198a1; --hl-tag: #7ee787; --hl-bullet: #f2cc60; --hl-add-bg: #033a16; --hl-del-bg: #67060c; } }
+.markdown-body mark { padding: 0 .1em; background: #fff8c5; color: inherit; }
 @media print {
-  :root { --fg: #000; --muted: #444; --bg: #fff; --soft: #f3f3f3; --link: #000; color-scheme: light; }
+  :root { --fg: #000; --muted: #444; --bg: #fff; --soft: #f3f3f3; --link: #000; color-scheme: light; --hl-keyword: #cf222e; --hl-title: #8250df; --hl-constant: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #59636e; --hl-tag: #116329; --hl-bullet: #3b2300; --hl-add-bg: #dafbe1; --hl-del-bg: #ffebe9; }
   .markdown-body { max-width: none; padding: 0; }
   .markdown-body pre, .markdown-body table, .markdown-body img, .markdown-body blockquote { break-inside: avoid; }
   .markdown-body h1, .markdown-body h2, .markdown-body h3 { break-after: avoid; }

@@ -514,8 +514,67 @@ body.show-source #source-pane {
   content: var(--lbl-definition);
 }
 
-.md-editor pre.raw-block[data-raw='footnoteDefinition']::before {
-  content: var(--lbl-footnote);
+/* <sup>, <sub>, <mark> */
+.md-editor sup,
+.md-editor sub {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.md-editor mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  color: inherit;
+  background: #fff3a3;
+}
+
+@media (prefers-color-scheme: dark) {
+  .md-editor mark {
+    background: #6b5a12;
+  }
+}
+
+/* Footnotes: reference shows the number GitHub would show, the note its number */
+.md-editor .fn-ref {
+  padding: 0 1px;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.md-editor .fn-ref[data-n] .fn-label {
+  display: none;
+}
+
+.md-editor .fn-ref[data-n]::after {
+  content: attr(data-n);
+}
+
+.md-editor .fn-ref.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  border-radius: 2px;
+}
+
+.md-editor .fn-def {
+  position: relative;
+  margin: 0 0 8px;
+  padding: 2px 0 2px 2.2em;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.md-editor .fn-def::before {
+  position: absolute;
+  left: 0.6em;
+  top: 2px;
+  color: var(--accent);
+  font-weight: 600;
+  content: attr(data-n) '.';
+}
+
+.md-editor .fn-def > :last-child {
+  margin-bottom: 0;
 }
 
 .md-editor .raw-inline {
@@ -1486,4 +1545,106 @@ body.show-source #source-pane {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
   border-radius: 6px;
+}
+
+/* Syntax highlighting in code blocks (highlight.js classes, GitHub colours) */
+:root {
+  --hl-keyword: #cf222e;
+  --hl-title: #8250df;
+  --hl-constant: #0550ae;
+  --hl-string: #0a3069;
+  --hl-builtin: #953800;
+  --hl-comment: #59636e;
+  --hl-tag: #116329;
+  --hl-bullet: #3b2300;
+  --hl-add-bg: #dafbe1;
+  --hl-del-bg: #ffebe9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hl-keyword: #ff7b72;
+    --hl-title: #d2a8ff;
+    --hl-constant: #79c0ff;
+    --hl-string: #a5d6ff;
+    --hl-builtin: #ffa657;
+    --hl-comment: #9198a1;
+    --hl-tag: #7ee787;
+    --hl-bullet: #f2cc60;
+    --hl-add-bg: #033a16;
+    --hl-del-bg: #67060c;
+  }
+}
+
+.md-editor pre .hljs-keyword,
+.md-editor pre .hljs-doctag,
+.md-editor pre .hljs-template-tag,
+.md-editor pre .hljs-variable.language_ {
+  color: var(--hl-keyword);
+}
+
+.md-editor pre .hljs-title {
+  color: var(--hl-title);
+}
+
+.md-editor pre .hljs-attr,
+.md-editor pre .hljs-attribute,
+.md-editor pre .hljs-literal,
+.md-editor pre .hljs-meta,
+.md-editor pre .hljs-number,
+.md-editor pre .hljs-operator,
+.md-editor pre .hljs-variable,
+.md-editor pre .hljs-selector-attr,
+.md-editor pre .hljs-selector-class,
+.md-editor pre .hljs-selector-id,
+.md-editor pre .hljs-section {
+  color: var(--hl-constant);
+}
+
+.md-editor pre .hljs-regexp,
+.md-editor pre .hljs-string {
+  color: var(--hl-string);
+}
+
+.md-editor pre .hljs-built_in,
+.md-editor pre .hljs-symbol,
+.md-editor pre .hljs-type {
+  color: var(--hl-builtin);
+}
+
+.md-editor pre .hljs-comment,
+.md-editor pre .hljs-code,
+.md-editor pre .hljs-formula {
+  color: var(--hl-comment);
+}
+
+.md-editor pre .hljs-name,
+.md-editor pre .hljs-quote,
+.md-editor pre .hljs-selector-tag,
+.md-editor pre .hljs-selector-pseudo,
+.md-editor pre .hljs-tag {
+  color: var(--hl-tag);
+}
+
+.md-editor pre .hljs-bullet {
+  color: var(--hl-bullet);
+}
+
+.md-editor pre .hljs-emphasis {
+  font-style: italic;
+}
+
+.md-editor pre .hljs-strong,
+.md-editor pre .hljs-section {
+  font-weight: 600;
+}
+
+.md-editor pre .hljs-addition {
+  color: var(--hl-tag);
+  background: var(--hl-add-bg);
+}
+
+.md-editor pre .hljs-deletion {
+  color: var(--hl-keyword);
+  background: var(--hl-del-bg);
 }

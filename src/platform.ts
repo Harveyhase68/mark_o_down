@@ -21,7 +21,7 @@ export interface MdFile {
 
 export const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
-const MD_EXT = ['md', 'markdown', 'mdown', 'mkd', 'txt']
+const MD_EXT = ['md', 'markdown', 'mdown', 'mkd', 'mkdn', 'mdwn', 'txt']
 const HTML_EXT = ['html', 'htm']
 // functions: the names follow the UI language
 const MD_FILTER = () => [{ name: t('dialog.markdown'), extensions: MD_EXT }]

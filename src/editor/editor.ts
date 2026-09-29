@@ -1,4 +1,6 @@
 import { EditorState, Plugin, type Command } from 'prosemirror-state'
+import { footnotePlugin, insertFootnote } from './footnotes'
+import { highlightPlugin } from './highlight'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { Fragment, Slice, type Node as PMNode, type ResolvedPos } from 'prosemirror-model'
 import { keymap } from 'prosemirror-keymap'
@@ -203,6 +205,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
     'Mod-Alt-1': setHeading(1),
     'Mod-Alt-2': setHeading(2),
     'Mod-Alt-3': setHeading(3),
+    'Mod-Alt-f': insertFootnote,
     'Shift-Mod-8': toggleList(N.bullet_list),
     'Shift-Mod-7': toggleList(N.ordered_list),
     'Shift-Mod-9': toggleBlockquote(),
@@ -265,7 +268,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
 
   // a new nodeViews object makes ProseMirror redraw all node views
   const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView })
-  const plugins = [searchPlugin, tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
+  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
   const stateFor = (doc: PMNode) => EditorState.create({ schema, doc, plugins })
 
   const view = new EditorView(mount, {
