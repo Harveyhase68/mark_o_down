@@ -195,6 +195,9 @@ checks that full re-serialization renders identical HTML.
   `$$` + space starts a block. Single `$` follow Pandoc's rule, so prices like `$5 to $10` stay
   text, and `$` is escaped when saving only where a formula could otherwise form. The formula
   renderer is loaded only when needed; the installer grows by about 60 KB.
+- **Third-party licenses** under *Help → About → Open Source*: the licenses of all components
+  the app is built with (npm packages, Rust crates, Unicode data), generated at build time
+  (`npm run licenses`), loaded only when opened.
 - More Markdown file extensions: `.mdown`, `.mkd`, `.mkdn`, `.mdwn` open directly and are
   registered by the installers (with `.md` and `.markdown`).
 

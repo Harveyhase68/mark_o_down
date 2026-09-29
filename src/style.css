@@ -1718,3 +1718,20 @@ body.show-source #source-pane {
   border-radius: 6px;
   text-align: center;
 }
+
+/* Third-party licenses (from the About dialog) */
+.dialog.licenses {
+  width: min(760px, 92vw);
+}
+
+.dialog.licenses .licenses-text {
+  max-height: 62vh;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  font: 11.5px/1.45 var(--mono);
+  white-space: pre-wrap;
+}

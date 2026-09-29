@@ -4,12 +4,13 @@
   "version": "0.4.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "node scripts/third-party-licenses.mjs --if-missing && vite",
+    "build": "node scripts/third-party-licenses.mjs && tsc --noEmit && vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "unicode": "node scripts/build-unicode.mjs",
+    "licenses": "node scripts/third-party-licenses.mjs",
     "release:version": "node scripts/set-version.mjs"
   },
   "dependencies": {

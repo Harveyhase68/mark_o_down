@@ -130,6 +130,8 @@ export const es: Messages = {
   'about.version': 'Versión',
   'about.website': 'Sitio web',
   'about.license': 'Licencia',
+  'about.thirdParty': 'Licencias de terceros',
+  'about.thirdPartyMissing': 'Falta la lista de licencias en esta compilación (se crea con «npm run build»).',
   'about.imprint': 'Aviso legal',
 
   'err.open': 'No se pudo abrir el archivo:\n{error}',

@@ -130,6 +130,8 @@ export const it: Messages = {
   'about.version': 'Versione',
   'about.website': 'Sito web',
   'about.license': 'Licenza',
+  'about.thirdParty': 'Licenze di terze parti',
+  'about.thirdPartyMissing': "L'elenco delle licenze manca in questa build (viene creato da «npm run build»).",
   'about.imprint': 'Note legali',
 
   'err.open': 'Impossibile aprire il file:\n{error}',

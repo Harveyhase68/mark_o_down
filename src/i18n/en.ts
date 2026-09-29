@@ -130,6 +130,8 @@ export const en: Messages = {
   'about.version': 'Version',
   'about.website': 'Website',
   'about.license': 'License',
+  'about.thirdParty': 'Third-party licenses',
+  'about.thirdPartyMissing': 'The license list is missing from this build (it is created by "npm run build").',
   'about.imprint': 'Legal notice',
 
   'err.open': 'The file could not be opened:\n{error}',

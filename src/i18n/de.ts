@@ -139,6 +139,8 @@ export const de = {
   'about.version': 'Version',
   'about.website': 'Website',
   'about.license': 'Lizenz',
+  'about.thirdParty': 'Lizenzen von Drittanbietern',
+  'about.thirdPartyMissing': 'Die Lizenzliste fehlt in diesem Build (sie entsteht bei „npm run build“).',
   'about.imprint': 'Impressum',
 
   // ------------------------------------------------------------ files, import, export
