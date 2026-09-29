@@ -30,9 +30,9 @@ describe('translations', () => {
   it('fills placeholders and localises shortcuts', () => {
     _setLangForTests('de')
     expect(t('save.question', { name: 'README.md' })).toBe('Änderungen an „README.md“ speichern?')
-    expect(kbd('Ctrl+Shift+S')).toBe('Strg+Umschalt+S')
+    expect(kbd('Ctrl+Shift+S', false)).toBe('Strg+Umschalt+S')
     _setLangForTests('fr')
-    expect(kbd('Ctrl+Shift+S')).toBe('Ctrl+Maj+S')
+    expect(kbd('Ctrl+Shift+S', false)).toBe('Ctrl+Maj+S')
     expect(t('find.count', { current: 3, total: 12 })).toBe('3 sur 12')
     _setLangForTests('en')
     expect(t('find.count', { current: 3, total: 12 })).toBe('3 of 12')
