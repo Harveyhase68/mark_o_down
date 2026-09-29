@@ -13,7 +13,7 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-**Version 0.3.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-030) · [Changelog](#changelog)
+**Version 0.4.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-040) · [Changelog](#changelog)
 
 </div>
 
@@ -21,14 +21,13 @@ Mark O Down is not a Markdown editor with a preview pane – the document *is* t
 headings, bold text, lists, links, images, tables and badges directly, and the file on disk stays
 clean Markdown.
 
-## What's new in 0.3.0
+## What's new in 0.4.0
 
-- 🌍 **Five languages** – German, English, French, Spanish and Italian. Follows the Windows
-  language, switchable any time under *Help → Language* – no restart needed.
-- 📋 **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document
-  (`images/`) and inserts it; a pasted URL becomes a link, an image URL an image.
-- 😀 **Emoji search in your language** – `rire`, `risa`, `ridere` or `lachen` all find 😂.
-- The installer speaks all five languages – see the [changelog](#changelog).
+- 🍎🐧 **Now also for macOS and Linux** – a `.dmg` for Apple Silicon and Intel Macs, and
+  `.AppImage`, `.deb` and `.rpm` for Linux. With `⌘` shortcuts, *Open with…* for `.md` files,
+  and `⌘Q` asks about unsaved changes.
+- ↔️ **Center a table with one click** – cursor in the table, *Center*, done.
+- New in 0.3.0: five languages, `Ctrl+V` of images and links – see the [changelog](#changelog).
 
 ## Features
 
@@ -162,7 +161,7 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
-### Unreleased
+### 0.4.0 – 2026-09-29
 
 **New**
 
