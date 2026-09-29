@@ -35,6 +35,9 @@ clean Markdown.
   inline code, code blocks, bullet/numbered/task lists, quotes, links, images, horizontal rules, tables,
   footnotes – plus superscript, subscript and highlight as the HTML tags GitHub renders
   (`<sup>`, `<sub>`, `<mark>`).
+- **Math** like on GitHub: `$E=mc^2$` inline, `$$ … $$` and ` ```math ` blocks, shown as formulas
+  (LaTeX via [Temml](https://temml.org), rendered as MathML – no math fonts to ship). Prices stay
+  text: `from $5 to $10` is not a formula (Pandoc's rule). Loaded only when a document has math.
 - **Syntax highlighting** in fenced code blocks (` ```js `, ` ```rust ` …, ~40 languages), in GitHub's
   colours – also in the HTML export and when printing. Loaded only when a document has code.
 - **Lossless round-trip** – open → save without edits is byte-identical. When you edit, only the
@@ -106,6 +109,7 @@ right keys for your system.
 | Link | `Ctrl+K` |
 | Emoji & symbols | `Ctrl+.` |
 | Footnote | `Ctrl+Alt+F` (double-click a footnote number: go to the note) |
+| Formula block | type `$$` + space in an empty line |
 | Headings / Paragraph | `Ctrl+Alt+1…3` / `Ctrl+Alt+0` |
 | Bullet / numbered list / quote | `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+9` |
 | Indent / outdent list item, next table cell | `Tab` / `Shift+Tab` |
@@ -157,7 +161,8 @@ test suite on Windows, macOS and Linux ([`ci.yml`](.github/workflows/ci.yml)).
   100 % CommonMark compliant.
 - **Editor:** [ProseMirror](https://prosemirror.net) with a schema that contains exactly the Markdown
   constructs, plus [prosemirror-tables](https://github.com/ProseMirror/prosemirror-tables);
-  code colouring by [highlight.js](https://highlightjs.org) (BSD-3-Clause), loaded on demand.
+  code colouring by [highlight.js](https://highlightjs.org) (BSD-3-Clause) and formulas by
+  [Temml](https://temml.org) (MIT), both loaded on demand.
 - **Round-trip:** every top-level block (and every item of a top-level list) remembers its original
   source and its canonical serialization at load time. On save, an unchanged block is written back
   from the original bytes; only edited blocks are re-serialized.
@@ -183,6 +188,13 @@ checks that full re-serialization renders identical HTML.
 - **Syntax highlighting** of fenced code blocks with a language (~40 languages via highlight.js,
   GitHub colours, light and dark) – in the editor, the HTML export and print. The highlighter is
   loaded only when needed; the installer grows by about 50 KB.
+- **Math**: `$…$` inline and `$$…$$` / ` ```math ` blocks are shown as formulas (Temml, MathML) –
+  also in the HTML export, *Copy HTML* and print. Click a formula block to edit its LaTeX below it;
+  double-click an inline formula for a dialog with live preview. *Formula* in the toolbar: in an
+  empty paragraph a block, with text selected that text as formula, otherwise the dialog; typing
+  `$$` + space starts a block. Single `$` follow Pandoc's rule, so prices like `$5 to $10` stay
+  text, and `$` is escaped when saving only where a formula could otherwise form. The formula
+  renderer is loaded only when needed; the installer grows by about 60 KB.
 - More Markdown file extensions: `.mdown`, `.mkd`, `.mkdn`, `.mdwn` open directly and are
   registered by the installers (with `.md` and `.markdown`).
 

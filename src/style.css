@@ -1648,3 +1648,73 @@ body.show-source #source-pane {
   color: var(--hl-keyword);
   background: var(--hl-del-bg);
 }
+
+/* Formulas ($…$, $$…$$): MathML from Temml; the TeX source of a block only while editing */
+.md-editor .math-inline {
+  padding: 0 1px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.md-editor .math-inline.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+}
+
+.md-editor .math-source {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.md-editor .math-placeholder,
+.math-dialog-preview.math-placeholder {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.md-editor .math-block {
+  position: relative;
+  margin: 0 0 14px;
+  padding: 4px 0;
+  border-radius: 6px;
+}
+
+.md-editor .math-block > .math-preview {
+  overflow-x: auto;
+  text-align: center;
+  cursor: text;
+}
+
+.md-editor .math-block > pre {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--code-bg);
+  font: 13px/1.5 var(--mono);
+  white-space: pre-wrap;
+}
+
+/* not editing: the source stays in the document (for the cursor) but takes no space */
+.md-editor .math-block:not(.math-editing) > pre {
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.md-editor .math-block.math-editing,
+.md-editor .math-block:hover {
+  outline: 1px dashed var(--border);
+  outline-offset: 2px;
+}
+
+.math-dialog-preview {
+  min-height: 2.5em;
+  margin: 8px 0 0;
+  padding: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: center;
+}

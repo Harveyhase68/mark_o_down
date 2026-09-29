@@ -28,11 +28,30 @@ describe('HTML export with syntax highlighting', () => {
   it('colours code blocks with a known language, leaves others alone', async () => {
     const { loadHighlighter } = await import('../src/editor/highlight')
     const h = await loadHighlighter()
-    const html = renderHtml('```js\nconst a = "x"\n```\n\n```\nplain < text\n```\n\n```nosuchlang\nx\n```\n', h)
+    const html = renderHtml('```js\nconst a = "x"\n```\n\n```\nplain < text\n```\n\n```nosuchlang\nx\n```\n', { highlight: h })
     expect(html).toContain('<span class="hljs-keyword">const</span>')
     expect(html).toContain('<span class="hljs-string">&quot;x&quot;</span>')
     expect(html).toContain('<code>plain &#x3C; text\n</code>')
     expect(html).toContain('<code class="language-nosuchlang">x\n</code>')
     expect(renderHtml('```js\nconst a\n```\n')).not.toContain('hljs')
+  })
+})
+
+describe('HTML export with formulas', () => {
+  it('turns $…$, $$…$$ and ```math into MathML, leaves prices alone', async () => {
+    const { loadMath } = await import('../src/md/mathRender')
+    const math = await loadMath()
+    const html = renderHtml('Einstein: $E=mc^2$, costs $5 to $10.\n\n$$\n\\frac{a}{b}\n$$\n\n```math\n\\sqrt{2}\n```\n', { math })
+    expect(html).toContain('<math')
+    expect(html.match(/<math/g)).toHaveLength(3)
+    expect(html.match(/display="block"/g)).toHaveLength(2)
+    expect(html).toContain('costs $5 to $10.')
+    expect(html).toContain('<annotation encoding="application/x-tex">E=mc^2</annotation>')
+    expect(math.css).toContain('math')
+    expect(math.css).not.toContain('@font-face')
+  })
+
+  it('without the renderer, formulas stay code (nothing is lost)', () => {
+    expect(renderHtml('$x$\n')).toContain('<code class="language-math math-inline">x</code>')
   })
 })

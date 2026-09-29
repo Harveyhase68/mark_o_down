@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import pkg from './package.json' with { type: 'json' }
 
@@ -7,4 +8,6 @@ export default defineConfig({
   server: { port: 1420, strictPort: true },
   build: { target: 'es2022', outDir: 'dist', emptyOutDir: true },
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  // tests read Temml's stylesheet as text (exported pages embed it)
+  test: { css: { include: [/temml/] } },
 })

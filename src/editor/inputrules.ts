@@ -34,6 +34,9 @@ export function buildInputRules() {
         (m) => ({ start: +m[1], delim: m[2] }),
         (m, node) => node.childCount + node.attrs.start === +m[1],
       ),
+      // `$$` or ```math + space: a formula block (GitHub renders both)
+      textblockTypeInputRule(/^\$\$\s$/, N.math_block),
+      textblockTypeInputRule(/^```math\s$/, N.math_block, { fence: '`' }),
       textblockTypeInputRule(/^```([\w+#-]*)\s$/, N.code_block, (m) => ({ lang: m[1] || null })),
       // "[ ] " / "[x] " at the start of a list item → task
       new InputRule(/^\[( |x|X)\]\s$/, (state, match, start, end) => {

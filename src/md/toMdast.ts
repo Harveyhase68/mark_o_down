@@ -54,6 +54,10 @@ function blockNode(node: PMNode): M.RootContent | null {
       return { ...listShell(node), children: items(node) }
     case 'table':
       return table(node)
+    case 'math_block':
+      return a.fence
+        ? ({ type: 'code', lang: 'math', meta: null, value: node.textContent, data: mdo({ fence: a.fence }) } as M.Code)
+        : ({ type: 'math', meta: a.meta || null, value: node.textContent } as M.RootContent)
     case 'footnote_def':
       return { type: 'footnoteDefinition', identifier: footnoteId(a.label), label: a.label, children: flow(node) as M.BlockContent[] }
     default:
@@ -235,11 +239,29 @@ export function phrasing(parent: PMNode, inTable = false): M.PhrasingContent[] {
       case 'footnote_ref':
         c.push({ type: 'footnoteReference', identifier: footnoteId(a.label), label: a.label })
         break
+      case 'math_inline':
+        c.push({ type: 'inlineMath', value: a.tex } as M.PhrasingContent)
+        break
       default:
         throw new Error(`Unknown inline node: ${it.node.type.name}`)
     }
   })
-  return expandHtmlTags(root)
+  const out = expandHtmlTags(root)
+  // dollars that can't form a formula ("from $5 to $10", see md/math.ts) need no escaping
+  if (!couldFormMath(list.map((it) => (it.text !== undefined && !it.code ? it.text : ' ')).join(''))) markPlainDollars(out)
+  return out
+}
+
+/** Could these `$` be read as math? `$$…$$`, or `$x$` by Pandoc's rule (see md/math.ts). */
+export function couldFormMath(text: string): boolean {
+  return /\$\$[^]*\$\$/.test(text) || /(?<!\$)\$(?=[^\s$])[^]*?(?<=[^\s$])\$(?![$\d])/.test(text)
+}
+
+function markPlainDollars(nodes: M.PhrasingContent[]) {
+  for (const n of nodes) {
+    if (n.type === 'text' && n.value.includes('$')) n.data = { ...n.data, ...mdo({ plainDollars: true }) }
+    if ('children' in n) markPlainDollars(n.children as M.PhrasingContent[])
+  }
 }
 
 /**

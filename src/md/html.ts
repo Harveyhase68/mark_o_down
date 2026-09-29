@@ -8,43 +8,64 @@ import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
-import type { Element, Root as HRoot, RootContent as HContent } from 'hast'
+import type { Element, Root as HRoot } from 'hast'
 import type { HLJSApi } from 'highlight.js'
+import { remarkMath } from './math'
+import type { MathRenderer } from './mathRender'
 
-/** Colour fenced code blocks with highlight.js (classes as on GitHub, see PAGE_CSS). */
-function rehypeHighlight(h: HLJSApi) {
+export interface RenderOptions {
+  /** Colour fenced code blocks (classes as on GitHub, see PAGE_CSS). */
+  highlight?: HLJSApi
+  /** Show `$…$` / `$$…$$` / ```math as formulas (MathML). */
+  math?: MathRenderer
+}
+
+const text = (el: Element) => el.children.map((c) => (c.type === 'text' ? c.value : '')).join('')
+const classes = (el: Element | undefined) => (el?.type === 'element' ? ((el.properties.className as string[] | undefined) ?? []) : [])
+const raw = (value: string) => ({ type: 'raw', value }) as unknown as Element
+
+/** Code blocks → coloured, math (mdast-util-math marks it as `code.math-inline` / `pre > code.math-display`) → MathML. */
+function rehypeCodeAndMath(opts: RenderOptions) {
   return (tree: HRoot) => {
-    const visit = (node: HRoot | HContent) => {
-      if (node.type !== 'root' && node.type !== 'element') return
-      if (node.type === 'element' && node.tagName === 'pre') {
-        const code = node.children[0] as Element | undefined
-        const cls = code?.type === 'element' && code.tagName === 'code' ? ((code.properties.className as string[] | undefined) ?? []) : []
-        const lang = cls.find((c) => c.startsWith('language-'))?.slice(9).toLowerCase()
-        if (code && lang && h.getLanguage(lang)) {
-          const text = code.children.map((c) => (c.type === 'text' ? c.value : '')).join('')
-          code.children = [{ type: 'raw', value: h.highlight(text, { language: lang, ignoreIllegals: true }).value } as unknown as HContent as Element]
+    const visit = (node: HRoot | Element) => {
+      node.children.forEach((child, i) => {
+        if (child.type !== 'element') return
+        const code = child.tagName === 'pre' ? (child.children[0] as Element | undefined) : undefined
+        const cls = classes(code)
+        if (code?.tagName === 'code' && (cls.includes('math-display') || cls.includes('language-math'))) {
+          if (opts.math) node.children[i] = raw(opts.math.render(text(code).replace(/\n$/, ''), true))
+          return
         }
-        return
-      }
-      node.children.forEach(visit)
+        if (child.tagName === 'code' && classes(child).includes('math-inline')) {
+          if (opts.math) node.children[i] = raw(opts.math.render(text(child), false))
+          return
+        }
+        const lang = cls.find((c) => c.startsWith('language-'))?.slice(9).toLowerCase()
+        if (code?.tagName === 'code' && lang && opts.highlight?.getLanguage(lang)) {
+          code.children = [raw(opts.highlight.highlight(text(code), { language: lang, ignoreIllegals: true }).value)]
+          return
+        }
+        visit(child)
+      })
     }
     visit(tree)
   }
 }
 
-const processor = (highlight?: HLJSApi) => {
-  const p = unified()
+const processor = (opts: RenderOptions = {}) =>
+  unified()
     .use(remarkParse)
     .use(remarkGfm)
+    .use(remarkMath)
     .use(remarkFrontmatter, ['yaml', 'toml']) // front matter is metadata, not content
     .use(remarkRehype, { allowDangerousHtml: true })
-  return (highlight ? p.use(rehypeHighlight, highlight) : p).use(rehypeStringify, { allowDangerousHtml: true })
-}
+    .use(rehypeCodeAndMath, opts)
+    .use(rehypeStringify, { allowDangerousHtml: true })
 const plain = processor()
 
-/** HTML fragment of the document body; with `highlight`, code blocks are coloured. */
-export function renderHtml(markdown: string, highlight?: HLJSApi): string {
-  return String((highlight ? processor(highlight) : plain).processSync(markdown)).trim()
+/** HTML fragment of the document body. */
+export function renderHtml(markdown: string, opts?: RenderOptions): string {
+  return String((opts?.highlight || opts?.math ? processor(opts) : plain).processSync(markdown)).trim()
 }
 
 /** Title for a standalone page: first heading, else the file name. */
@@ -57,7 +78,7 @@ export function documentTitle(markdown: string, fallback: string): string {
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 /** Complete HTML page with an embedded GitHub-like stylesheet (no external files). */
-export function renderHtmlPage(markdown: string, title: string, lang = 'de', highlight?: HLJSApi): string {
+export function renderHtmlPage(markdown: string, title: string, lang = 'de', opts: RenderOptions = {}): string {
   return `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -66,12 +87,12 @@ export function renderHtmlPage(markdown: string, title: string, lang = 'de', hig
 <meta name="generator" content="Mark O Down">
 <title>${escapeHtml(title)}</title>
 <style>
-${PAGE_CSS}
+${PAGE_CSS}${opts.math ? `\n${opts.math.css}` : ''}
 </style>
 </head>
 <body>
 <article class="markdown-body">
-${renderHtml(markdown, highlight)}
+${renderHtml(markdown, opts)}
 </article>
 </body>
 </html>

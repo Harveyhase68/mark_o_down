@@ -12,7 +12,7 @@ import { HELP_URL, showAbout } from './editor/about'
 import { printMarkdown } from './editor/print'
 import { createFindBar } from './editor/findbar'
 import { modalOpen } from './editor/modal'
-import { loadHighlighter } from './editor/highlight'
+import { renderOptions } from './md/renderOptions'
 import { setupZoom } from './editor/zoom'
 import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
@@ -426,8 +426,8 @@ async function openRecent(path: string) {
 const htmlTitle = () => documentTitle(markdown(), withoutExt(docName()))
 
 async function exportHtml() {
-  const highlight = await loadHighlighter().catch(() => undefined)
-  const page = renderHtmlPage(markdown(), htmlTitle(), getLang(), highlight)
+  const md = markdown()
+  const page = renderHtmlPage(md, htmlTitle(), getLang(), await renderOptions(md))
   if (!host.isTauri) return download(page, `${withoutExt(docName())}.html`, 'text/html')
   const path = await host.pickHtmlSavePath(`${withoutExt(doc.path ?? docName())}.html`)
   if (!path) return
@@ -441,7 +441,9 @@ async function exportHtml() {
 
 async function copyHtml() {
   try {
-    await host.copyHtml(renderHtml(markdown()))
+    // formulas as MathML (self-contained); code colours would need the page's stylesheet
+    const md = markdown()
+    await host.copyHtml(renderHtml(md, { math: (await renderOptions(md)).math }))
     flash(t('flash.htmlCopied'))
   } catch (e) {
     await host.showError(t('err.copy', { error: String(e) }))

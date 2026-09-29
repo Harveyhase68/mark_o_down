@@ -154,9 +154,14 @@ export class MdastToPM {
         return S.horizontal_rule.create({ rule, repeat, spaces: /\s/.test(src) })
       }
 
+      case 'math':
+        return S.math_block.create({ meta: node.meta ?? null }, node.value ? schema.text(node.value) : null)
+
       case 'code': {
         const fenceMatch = /^ {0,3}(`{3,}|~{3,})/.exec(this.slice(node))
         const text = node.value ? schema.text(node.value) : null
+        // ```math: GitHub shows it as a formula
+        if (node.lang?.toLowerCase() === 'math' && !node.meta && fenceMatch) return S.math_block.create({ fence: fenceMatch[1].charAt(0) }, text)
         return S.code_block.create(
           { lang: node.lang ?? null, meta: node.meta ?? null, fence: fenceMatch ? fenceMatch[1].charAt(0) : null, indented: !fenceMatch && this.slice(node) !== '' },
           text,
@@ -319,6 +324,9 @@ export class MdastToPM {
       }
       case 'break':
         out.push(S.hard_break.create({ spaces: this.firstChar(node) !== '\\' }, null, marks))
+        return
+      case 'inlineMath':
+        out.push(S.math_inline.create({ tex: node.value }, null, marks))
         return
       case 'footnoteReference':
         out.push(S.footnote_ref.create({ label: node.label ?? node.identifier }, null, marks))

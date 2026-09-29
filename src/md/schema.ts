@@ -124,6 +124,19 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: (node) => ['div', { 'data-footnote-def': node.attrs.label, class: 'fn-def' }, 0],
   },
 
+  // Math block `$$ … $$` (or a ```math fence: `fence` is its character). The text is
+  // the TeX source; editor/math.ts shows the formula (the source while editing).
+  math_block: {
+    group: 'block',
+    content: 'text*',
+    marks: '',
+    code: true,
+    defining: true,
+    attrs: { fence: { default: null }, meta: { default: null }, ...srcAttrs },
+    parseDOM: [{ tag: 'div[data-math-block]', preserveWhitespace: 'full', contentElement: 'pre' }],
+    toDOM: () => ['div', { 'data-math-block': '', class: 'math-block' }, ['pre', 0]],
+  },
+
   // Markdown we don't edit structurally (html, front matter, …).
   // Its text *is* the Markdown source and is written back verbatim.
   raw_block: {
@@ -215,6 +228,17 @@ const nodes: Record<string, NodeSpec> = {
     leafText: (node) => `[^${node.attrs.label}]`,
     parseDOM: [{ tag: 'sup[data-footnote]', getAttrs: (dom) => ({ label: (dom as HTMLElement).getAttribute('data-footnote') }) }],
     toDOM: (node) => ['sup', { 'data-footnote': node.attrs.label, class: 'fn-ref' }, ['span', { class: 'fn-label' }, node.attrs.label]],
+  },
+
+  // Inline math `$ … $`
+  math_inline: {
+    group: 'inline',
+    inline: true,
+    atom: true,
+    attrs: { tex: { default: '' } },
+    leafText: (node) => `$${node.attrs.tex}$`,
+    parseDOM: [{ tag: 'span[data-math]', getAttrs: (dom) => ({ tex: (dom as HTMLElement).getAttribute('data-math') }) }],
+    toDOM: (node) => ['span', { 'data-math': node.attrs.tex, class: 'math-inline' }, node.attrs.tex],
   },
 
   // Inline Markdown we don't edit structurally (other inline HTML, …).

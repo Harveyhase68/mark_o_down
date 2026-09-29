@@ -1,7 +1,7 @@
 // Print the rendered document (like the HTML export), not the editor UI.
 
 import { renderHtmlPage } from '../md/html'
-import { loadHighlighter } from './highlight'
+import { renderOptions } from '../md/renderOptions'
 import { getLang } from '../i18n'
 
 /** Renders into a hidden iframe, resolves local images, then opens the print dialog. */
@@ -14,11 +14,11 @@ export async function printMarkdown(markdown: string, title: string, resolveImag
   frame.setAttribute('sandbox', 'allow-same-origin allow-modals')
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
   document.body.append(frame)
-  const highlight = await loadHighlighter().catch(() => undefined)
+  const opts = await renderOptions(markdown)
 
   await new Promise<void>((resolve) => {
     frame.onload = () => resolve()
-    frame.srcdoc = renderHtmlPage(markdown, title, getLang(), highlight)
+    frame.srcdoc = renderHtmlPage(markdown, title, getLang(), opts)
   })
   const doc = frame.contentDocument!
   const win = frame.contentWindow!

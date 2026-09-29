@@ -1,6 +1,6 @@
 // Markdown text <-> mdast (the unified/remark syntax tree).
 //
-// Parsing: micromark (CommonMark + GFM + front matter), 100% spec compliant.
+// Parsing: micromark (CommonMark + GFM + front matter + `$math$` like GitHub), 100% spec compliant.
 // Serializing: mdast-util-to-markdown, with per-node style hints stored in
 // `node.data.mdo` so an edited block keeps its original "flavour"
 // (`-` vs `*` bullets, `_em_` vs `*em*`, `~~~` vs ``` fences, setext headings …).
@@ -9,6 +9,8 @@ import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter'
+import { remarkMath } from './math'
+import { mathToMarkdown } from 'mdast-util-math'
 import { toMarkdown, defaultHandlers, type Handle, type Options, type State } from 'mdast-util-to-markdown'
 import { gfmToMarkdown } from 'mdast-util-gfm'
 import { gfmTableToMarkdown } from 'mdast-util-gfm-table'
@@ -18,7 +20,7 @@ import type { Nodes, Root, Link, Table } from 'mdast'
 
 const FRONTMATTER = ['yaml', 'toml'] as const
 
-const processor = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, [...FRONTMATTER])
+const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkFrontmatter, [...FRONTMATTER])
 
 export function parseMarkdown(text: string): Root {
   return processor.parse(text) as Root
@@ -41,6 +43,8 @@ export interface StyleHints {
   literal?: boolean
   pipeAlign?: boolean
   centerTag?: boolean
+  /** Text in a paragraph with fewer than two `$`: no math can start there, so `$` needs no escape. */
+  plainDollars?: boolean
 }
 
 function hints(node: Nodes): StyleHints {
@@ -129,6 +133,17 @@ const handlers: Options['handlers'] = {
   },
   link,
   table,
+  // `$` is escaped only where a formula could form (see plainDollars): "costs $5" stays as it is
+  text: (node, parent, state, info) => {
+    if (!hints(node as Nodes).plainDollars) return defaultHandlers.text(node as never, parent, state, info)
+    const saved = state.unsafe
+    state.unsafe = saved.filter((p) => !(p.character === '$' && !p.atBreak))
+    try {
+      return defaultHandlers.text(node as never, parent, state, info)
+    } finally {
+      state.unsafe = saved
+    }
+  },
   root: (node, parent, state, info) => {
     // The library escapes every `&` before a letter (`?a=1\&b=2` in URLs). CommonMark
     // only decodes complete references (`&copy;`, `&#35;`), so escape just those.
@@ -152,7 +167,7 @@ const baseOptions: Options = {
   // `<div align="center">`/`</div>` must be separated by blank lines, or the
   // Markdown inside would be swallowed by the HTML block.
   join: [(left, right) => (hints(left).centerTag || hints(right).centerTag ? 1 : undefined)],
-  extensions: [gfmToMarkdown(), frontmatterToMarkdown([...FRONTMATTER])],
+  extensions: [gfmToMarkdown(), mathToMarkdown(), frontmatterToMarkdown([...FRONTMATTER])],
 }
 
 /** Serialize mdast; returns Markdown without the trailing newline. */
