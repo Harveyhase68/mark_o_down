@@ -60,13 +60,17 @@ jobs:
         run: |
           node scripts/release-notes.mjs "$TAG" > notes.md
           find_id() { gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n 1; }
+          # re-run for an existing tag: reuse its (draft) release
           id=$(find_id)
           if [ -z "$id" ]; then
-            pre=""
-            if [[ "$TAG" == *-* ]]; then pre="--prerelease"; fi
-            gh release create "$TAG" --draft --verify-tag --title "Mark O Down $TAG" --notes-file notes.md $pre
-            id=$(find_id)
+            pre=false
+            if [[ "$TAG" == *-* ]]; then pre=true; fi
+            # the id comes from the answer – a new draft isn't listed right away
+            id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+              -f tag_name="$TAG" -f name="Mark O Down $TAG" -F body=@notes.md \
+              -F draft=true -F prerelease=$pre --jq .id)
           fi
+          if [ -z "$id" ]; then echo "::error::no release id"; exit 1; fi
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   build:
