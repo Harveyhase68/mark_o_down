@@ -20,6 +20,12 @@ export function textInput(value = '', placeholder = ''): HTMLInputElement {
   return i
 }
 
+/** macOS: shortcuts use Cmd (⌘) where Windows/Linux use Ctrl. */
+export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+
+/** The shortcut modifier is held: Cmd on macOS, Ctrl elsewhere. */
+export const modKey = (e: KeyboardEvent | MouseEvent) => (isMac ? e.metaKey : e.ctrlKey)
+
 /** localStorage that never throws (private mode, quota, blocked storage). */
 export const store = {
   get<T>(key: string, fallback: T): T {

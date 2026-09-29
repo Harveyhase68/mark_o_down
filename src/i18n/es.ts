@@ -244,6 +244,8 @@ export const es: Messages = {
     'Proveedores, plantillas y conjuntos de iconos en JSON. Marcadores: {x}, {x|raw}, {x|shields}, {x|hex}. Los parámetros de consulta vacíos se eliminan. «cacheHours» = cuánto tiempo se guardan en caché las listas de iconos. Tab sangra; Esc cierra sin guardar.',
   'config.reset': 'Restablecer valores predeterminados',
   'config.reveal': 'Mostrar en el Explorador',
+  'config.revealMac': 'Mostrar en el Finder',
+  'config.revealLinux': 'Mostrar en el gestor de archivos',
   'config.notSaved': 'No guardado: {error}',
   'config.broken': '{file} no es válido ({error}); se usan los valores predeterminados.',
   'config.notObject': 'La configuración debe ser un objeto JSON.',

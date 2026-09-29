@@ -6,6 +6,8 @@ mod paths;
 mod recovery;
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use mdfile::Eol;
 use serde::Serialize;
@@ -115,17 +117,79 @@ fn is_elevated() -> bool {
     paths::is_elevated()
 }
 
-/// File passed on the command line ("Open with…" / drag onto the exe).
+/// Files handed to the running app by the system (macOS "Open with…" / double-click),
+/// waiting to be picked up by the frontend.
+#[derive(Default)]
+struct PendingFiles(Mutex<Vec<String>>);
+
+static ARGS_TAKEN: AtomicBool = AtomicBool::new(false);
+
+/// A file to open: first the one on the command line ("Open with…" / drag onto the
+/// exe on Windows and Linux), then the ones macOS hands over while the app runs.
+/// Each is returned only once.
 #[tauri::command]
-fn initial_file() -> Option<String> {
-    std::env::args()
-        .skip(1)
-        .find(|a| !a.starts_with('-'))
-        .map(|a| paths::absolute(Path::new(&a)).to_string_lossy().into_owned())
+fn initial_file(pending: tauri::State<PendingFiles>) -> Option<String> {
+    if !ARGS_TAKEN.swap(true, Ordering::SeqCst)
+        && let Some(a) = std::env::args().skip(1).find(|a| !a.starts_with('-'))
+    {
+        return Some(paths::absolute(Path::new(&a)).to_string_lossy().into_owned());
+    }
+    let mut files = pending.0.lock().ok()?;
+    (!files.is_empty()).then(|| files.remove(0))
+}
+
+/// macOS: the app menu with our own "Quit", which closes the window like the close
+/// button does – so unsaved changes are asked about instead of being lost.
+#[cfg(target_os = "macos")]
+fn mac_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+    let quit = MenuItem::with_id(app, "quit", "Quit Mark O Down", true, Some("CmdOrCtrl+Q"))?;
+    let app_menu = Submenu::with_items(
+        app,
+        "Mark O Down",
+        true,
+        &[
+            &PredefinedMenuItem::hide(app, None)?,
+            &PredefinedMenuItem::hide_others(app, None)?,
+            &PredefinedMenuItem::show_all(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )?;
+    // Cut/copy/paste/select all must be in the menu for their shortcuts to work in
+    // the webview; undo/redo are the editor's own (toolbar, Cmd+Z).
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+    let window = Submenu::with_items(
+        app,
+        "Window",
+        true,
+        &[&PredefinedMenuItem::minimize(app, None)?, &PredefinedMenuItem::fullscreen(app, None)?],
+    )?;
+    Menu::with_items(app, &[&app_menu, &edit, &window])
 }
 
 fn main() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(mac_menu).on_menu_event(|app, event| {
+        if event.id().as_ref() == "quit"
+            && let Some(w) = app.get_webview_window("main")
+        {
+            let _ = w.close(); // the frontend asks about unsaved changes
+        }
+    });
+    builder
+        .manage(PendingFiles::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -158,6 +222,18 @@ fn main() {
             cache::config_dir,
             cache::fetch_cached,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // macOS hands over files ("Open with…", double-click) as an event, not as arguments
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &event {
+                let files = urls.iter().filter_map(|u| u.to_file_path().ok()).map(|p| p.to_string_lossy().into_owned());
+                if let Ok(mut pending) = app.state::<PendingFiles>().0.lock() {
+                    pending.extend(files);
+                }
+                let _ = tauri::Emitter::emit(app, "open-file", ());
+            }
+            let _ = (app, event);
+        });
 }

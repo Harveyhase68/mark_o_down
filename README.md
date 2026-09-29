@@ -4,12 +4,12 @@
 
 # Mark O Down
 
-**A minimal WYSIWYG Markdown editor for Windows – edit `.md` files visually, save them byte-for-byte.**
+**A minimal WYSIWYG Markdown editor for Windows, macOS and Linux – edit `.md` files visually, save them byte-for-byte.**
 
 [![CI](https://github.com/Harveyhase68/mark_o_down/actions/workflows/ci.yml/badge.svg)](https://github.com/Harveyhase68/mark_o_down/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Harveyhase68/mark_o_down?include_prereleases)](https://github.com/Harveyhase68/mark_o_down/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)
+![Platform: Windows | macOS | Linux](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
@@ -56,22 +56,39 @@ clean Markdown.
 - **Export** – standalone HTML file, HTML to the clipboard, print. Document zoom 50–300 %.
 - **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document (`images/`)
   and inserts it; a pasted URL becomes a link, an image URL an image.
-- **Five languages** – German, English, French, Spanish and Italian; follows the Windows language,
+- **Five languages** – German, English, French, Spanish and Italian; follows the system language,
   switchable any time under *Help → Language*.
 - Markdown shortcuts while typing (`# `, `- `, `1. `, `> `, `**bold**`, `[text](url)` …).
 
 ## Download
 
-Get the installer **`Mark.O.Down_0.3.0_x64-setup.exe`** from the
-[latest release](https://github.com/Harveyhase68/mark_o_down/releases/latest) (Windows 10/11, 64-bit).
-It needs Microsoft Edge WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
+Get the right file from the [latest release](https://github.com/Harveyhase68/mark_o_down/releases/latest):
 
-> **"Windows protected your PC"?** The installer is not code-signed yet. Click **More info → Run anyway**.
+| System | File |
+|---|---|
+| Windows 10/11, 64-bit | `Mark.O.Down_<version>_x64-setup.exe` |
+| macOS 10.15+ (Apple Silicon and Intel) | `Mark.O.Down_<version>_universal.dmg` |
+| Linux, 64-bit – any distribution | `Mark.O.Down_<version>_amd64.AppImage` |
+| Debian, Ubuntu, Mint … | `Mark.O.Down_<version>_amd64.deb` |
+| Fedora, openSUSE … | `Mark.O.Down-<version>-1.x86_64.rpm` |
 
-> **Drag & drop not working?** Windows blocks drag & drop from Explorer into programs running
-> *as administrator*. Start Mark O Down normally – the status bar warns you if it runs elevated.
+The apps are not code-signed yet:
+
+- **Windows:** *"Windows protected your PC"* → click **More info → Run anyway**. The app needs
+  Microsoft Edge WebView2, which is part of Windows 10/11 (the installer fetches it if missing).
+- **macOS:** the first time, right-click the app → **Open** (or *System Settings → Privacy & Security →
+  Open Anyway*). If macOS says the app *"is damaged"*, run
+  `xattr -dr com.apple.quarantine "/Applications/Mark O Down.app"` in Terminal.
+- **Linux:** make the AppImage executable (`chmod +x Mark.O.Down_*.AppImage`) and start it, or install
+  the `.deb` / `.rpm`, which also registers Mark O Down for `.md` files.
+
+> **Drag & drop not working on Windows?** Windows blocks drag & drop from Explorer into programs
+> running *as administrator*. Start Mark O Down normally – the status bar warns you if it runs elevated.
 
 ## Keyboard shortcuts
+
+On macOS use `⌘ Cmd` instead of `Ctrl` and `⌥ Option` instead of `Alt` – the tooltips show the
+right keys for your system.
 
 | Action | Keys |
 |---|---|
@@ -88,17 +105,19 @@ It needs Microsoft Edge WebView2, which is part of Windows 10/11 (the installer 
 | Indent / outdent list item, next table cell | `Tab` / `Shift+Tab` |
 | Line break | `Shift+Enter` |
 | Show exported Markdown | `Ctrl+Shift+M` |
+| Quit (macOS, asks about unsaved changes) | `⌘Q` |
 | Help | `F1` |
 
 ## Building from source
 
 Requirements: [Rust](https://rustup.rs), [Node.js](https://nodejs.org) 22+, and the
-[Tauri prerequisites](https://tauri.app/start/prerequisites/) for Windows.
+[Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system (on Linux:
+`libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `patchelf` …).
 
 ```bash
 npm install
 npm run tauri dev      # run in development mode
-npm run tauri build    # release build + installer in src-tauri/target/release/bundle/nsis/
+npm run tauri build    # release build + installer/packages in src-tauri/target/release/bundle/
 npm test               # round-trip, editor and search tests
 npm run unicode        # refresh the emoji/symbol data from unicode.org and CLDR
 ```
@@ -115,11 +134,11 @@ git tag v0.3.0
 git push origin main v0.3.0
 ```
 
-The workflow checks that the tag matches the version, runs the tests, builds the installer and
-creates a **draft** release with the setup attached. The release notes are taken from the matching
+The workflow checks that the tag matches the version, runs the tests, creates a **draft** release
+and builds the Windows installer, the macOS app and the Linux packages into it. The release notes are taken from the matching
 section of the [changelog](#changelog) below – review the draft on GitHub and click *Publish*.
 Tags with a suffix (`v0.2.0-beta.1`) become pre-releases. Every push and pull request runs the
-test suite ([`ci.yml`](.github/workflows/ci.yml)).
+test suite on Windows, macOS and Linux ([`ci.yml`](.github/workflows/ci.yml)).
 
 ## How it works
 
@@ -142,6 +161,23 @@ The test suite round-trips its fixtures and all README files in `node_modules` b
 checks that full re-serialization renders identical HTML.
 
 ## Changelog
+
+### Unreleased
+
+**New**
+
+- **macOS and Linux**: Mark O Down now runs on macOS 10.15+ (one app for Apple Silicon and Intel,
+  `.dmg`) and Linux (`.AppImage`, `.deb`, `.rpm`). On macOS the shortcuts use `⌘` and the tooltips
+  show `⇧⌘S` style keys, *Quit* (`⌘Q`) asks about unsaved changes, and *Open with…* /
+  double-clicking a `.md` file opens it – also while the app is already running. The Linux
+  packages register Mark O Down for `.md` files.
+- **Center a table on its own**: with the cursor anywhere in a table, *Center* wraps the whole
+  table in `<div align="center">` (and removes it again) – no need to select the text around it.
+
+**Fixed**
+
+- Centered tables are also centered in the exported HTML.
+- Raw elements (`<kbd>`, `<sup>` …) show their tooltip in the new language right after switching.
 
 ### 0.3.0 – 2026-09-28
 

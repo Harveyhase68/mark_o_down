@@ -244,6 +244,8 @@ export const fr: Messages = {
     'Fournisseurs, modèles et jeux d’icônes en JSON. Espaces réservés : {x}, {x|raw}, {x|shields}, {x|hex}. Les paramètres de requête vides sont supprimés. « cacheHours » = durée de mise en cache des listes d’icônes. Tab indente ; Échap ferme sans enregistrer.',
   'config.reset': 'Rétablir les valeurs par défaut',
   'config.reveal': "Afficher dans l'Explorateur",
+  'config.revealMac': 'Afficher dans le Finder',
+  'config.revealLinux': 'Afficher dans le gestionnaire de fichiers',
   'config.notSaved': 'Non enregistré : {error}',
   'config.broken': '{file} est invalide ({error}) – les valeurs par défaut sont utilisées.',
   'config.notObject': 'La configuration doit être un objet JSON.',

@@ -1,5 +1,6 @@
 import type { Command, EditorState } from 'prosemirror-state'
 import type { MarkType, Node as PMNode, NodeType, ResolvedPos } from 'prosemirror-model'
+import { findWrapping } from 'prosemirror-transform'
 import { setBlockType, wrapIn, lift } from 'prosemirror-commands'
 import { wrapInList, liftListItem, splitListItem } from 'prosemirror-schema-list'
 import { TextSelection } from 'prosemirror-state'
@@ -166,6 +167,16 @@ export const toggleCenter: Command = (state, dispatch) => {
         const node = $from.node(d)
         dispatch(state.tr.replaceWith(pos, pos + node.nodeSize, node.content))
       }
+      return true
+    }
+  }
+  // in a table: center the whole table (a cell can't hold a center block)
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type === N.table) {
+      const range = state.doc.resolve($from.before(d)).blockRange(state.doc.resolve($from.after(d)))
+      const wrapping = range && findWrapping(range, N.center)
+      if (!range || !wrapping) return false
+      if (dispatch) dispatch(state.tr.wrap(range, wrapping).scrollIntoView())
       return true
     }
   }

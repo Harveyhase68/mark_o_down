@@ -2,7 +2,7 @@
 
 import { CONFIG_FILE, configText, defaultConfig, saveConfig, type PickerConfig } from './config'
 import * as host from '../platform'
-import { el } from '../editor/dom'
+import { el, isMac, modKey } from '../editor/dom'
 import { openModal } from '../editor/modal'
 import { t } from '../i18n'
 
@@ -15,7 +15,7 @@ export function editConfig(text: string): Promise<PickerConfig | null> {
     const save = el('button', { type: 'button', class: 'primary' }, t('common.save'))
     const cancel = el('button', { type: 'button' }, t('common.cancel'))
     const reset = el('button', { type: 'button' }, t('config.reset'))
-    const folder = el('button', { type: 'button' }, t('config.reveal'))
+    const folder = el('button', { type: 'button' }, t(isMac ? 'config.revealMac' : /Linux/.test(navigator.userAgent) ? 'config.revealLinux' : 'config.reveal'))
     folder.hidden = !host.isTauri
     const box = el(
       'div',
@@ -50,7 +50,7 @@ export function editConfig(text: string): Promise<PickerConfig | null> {
       }
     }
     box.addEventListener('keydown', (e) => {
-      if (e.key === 's' && e.ctrlKey) {
+      if (e.key === 's' && modKey(e)) {
         e.preventDefault()
         e.stopPropagation()
         save.click()

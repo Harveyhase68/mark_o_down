@@ -523,11 +523,18 @@ async function setupWindow(view: EditorView) {
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   const { getCurrentWebview } = await import('@tauri-apps/api/webview')
 
-  // closing the window: Speichern / Nicht speichern / Abbrechen
+  // closing the window (also Cmd+Q on macOS): Save / Don't save / Cancel
   await getCurrentWindow().onCloseRequested(async (e) => {
     if (!(await confirmDiscard())) return e.preventDefault()
     // leaving on purpose: no recovery copy must survive (it would be offered next time)
     await guard.clearRecovery()
+  })
+
+  // macOS "Open with…" / double-click while the app runs (at startup: initialFile)
+  const { listen } = await import('@tauri-apps/api/event')
+  await listen('open-file', async () => {
+    const p = await host.initialFile()
+    if (p && (await confirmDiscard())) await openPath(p)
   })
 
   // Windows blocks drag & drop from Explorer into an elevated (admin) process.

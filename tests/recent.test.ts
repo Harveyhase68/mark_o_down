@@ -24,5 +24,6 @@ describe('recently opened files', () => {
   it('shortens long folders for the menu', () => {
     expect(shortDir('C:\\Users\\messe\\Projekte\\mark_o_down\\README.md')).toBe('…\\Projekte\\mark_o_down')
     expect(shortDir('C:\\docs\\a.md')).toBe('C:\\docs')
+    expect(shortDir('/home/me/Projekte/mark_o_down/README.md')).toBe('…/Projekte/mark_o_down')
   })
 })

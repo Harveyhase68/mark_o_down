@@ -71,12 +71,12 @@ export function setupZoom(target: HTMLElement, scroller: HTMLElement, control: H
     },
   }
 
-  // Ctrl + mouse wheel (and touchpad pinch, which arrives as ctrl+wheel)
+  // Ctrl/Cmd + mouse wheel (and touchpad pinch, which arrives as ctrl+wheel)
   let wheel = 0
   window.addEventListener(
     'wheel',
     (e) => {
-      if (!e.ctrlKey) return
+      if (!(e.ctrlKey || e.metaKey)) return
       e.preventDefault() // no page zoom / scrolling
       wheel += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY // lines → pixels
       if (Math.abs(wheel) < WHEEL_STEP) return

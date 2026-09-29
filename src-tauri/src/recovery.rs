@@ -100,7 +100,16 @@ fn process_alive(pid: u32) -> bool {
 
 #[cfg(not(windows))]
 fn process_alive(pid: u32) -> bool {
-    std::path::Path::new(&format!("/proc/{pid}")).exists()
+    // `ps` exists on macOS and Linux (/proc only on Linux); the program name tells a
+    // reused pid apart ("mark_o_down", "mark-o-down", ".../Mark O Down.app/...")
+    std::process::Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "comm="])
+        .output()
+        .map(|o| {
+            let name: String = String::from_utf8_lossy(&o.stdout).to_lowercase().chars().filter(char::is_ascii_alphanumeric).collect();
+            o.status.success() && name.contains("markodown")
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -109,7 +118,7 @@ mod tests {
 
     #[test]
     fn own_process_counts_as_running_only_if_it_is_mark_o_down() {
-        // the test binary is named mark_o_down-<hash>.exe
+        // the test binary is named mark_o_down-<hash>(.exe)
         assert!(process_alive(std::process::id()));
         assert!(!process_alive(u32::MAX - 1));
     }

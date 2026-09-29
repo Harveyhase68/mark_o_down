@@ -257,6 +257,8 @@ export const de = {
     'Anbieter, Vorlagen und Icon-Sets als JSON. Platzhalter: {x}, {x|raw}, {x|shields}, {x|hex}. Leere Query-Parameter werden entfernt. "cacheHours" = wie lange Icon-Listen zwischengespeichert werden. Tab rückt ein; Esc schließt ohne Speichern.',
   'config.reset': 'Standard wiederherstellen',
   'config.reveal': 'Im Explorer zeigen',
+  'config.revealMac': 'Im Finder zeigen',
+  'config.revealLinux': 'Im Dateimanager zeigen',
   'config.notSaved': 'Nicht gespeichert: {error}',
   'config.broken': '{file} ist fehlerhaft ({error}) – es werden die Standardwerte verwendet.',
   'config.notObject': 'Die Konfiguration muss ein JSON-Objekt sein.',

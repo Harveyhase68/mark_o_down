@@ -2,6 +2,7 @@
 
 import type { EditorView } from 'prosemirror-view'
 import { kbd, t, type MessageKey } from '../i18n'
+import { modKey } from './dom'
 import { EMPTY_QUERY, findNext, replaceAll, replaceCurrent, revealCurrent, searchState, setQuery, type SearchQuery } from './search'
 
 export interface FindBar {
@@ -128,7 +129,7 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
     if (e.key === 'Escape') {
       e.preventDefault()
       close()
-    } else if (e.key === 'Enter' && e.ctrlKey && e.altKey) {
+    } else if (e.key === 'Enter' && modKey(e) && e.altKey) {
       e.preventDefault()
       doReplaceAll()
     } else if (e.key === 'Enter' && inReplace) {
@@ -138,8 +139,9 @@ export function createFindBar(container: HTMLElement, view: EditorView): FindBar
     } else if (e.key === 'Enter' || e.key === 'F3') {
       e.preventDefault()
       next(e.shiftKey ? -1 : 1)
-    } else if (e.altKey && !e.ctrlKey) {
-      const opt = { c: 'caseSensitive', w: 'wholeWord', r: 'regex' }[e.key.toLowerCase()] as keyof Omit<SearchQuery, 'text'> | undefined
+    } else if (e.altKey && !modKey(e)) {
+      // by key position: on macOS Option+C types "ç"
+      const opt = { KeyC: 'caseSensitive', KeyW: 'wholeWord', KeyR: 'regex' }[e.code] as keyof Omit<SearchQuery, 'text'> | undefined
       if (opt) {
         e.preventDefault()
         toggle(opt)

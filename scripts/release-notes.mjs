@@ -22,9 +22,23 @@ export function releaseNotes(markdown, version) {
 
 ---
 
-**Download:** \`Mark.O.Down_${v}_x64-setup.exe\` below – Windows 10/11, 64-bit.
-The installer is not code-signed yet: if Windows SmartScreen shows *"Windows protected your PC"*,
-click **More info → Run anyway**.
+**Download** (below):
+
+| System | File |
+|---|---|
+| Windows 10/11, 64-bit | \`Mark.O.Down_${v}_x64-setup.exe\` |
+| macOS 10.15+ (Apple Silicon and Intel) | \`Mark.O.Down_${v}_universal.dmg\` |
+| Linux, 64-bit – any distribution | \`Mark.O.Down_${v}_amd64.AppImage\` |
+| Debian, Ubuntu, Mint … | \`Mark.O.Down_${v}_amd64.deb\` |
+| Fedora, openSUSE … | \`Mark.O.Down-${v}-1.x86_64.rpm\` |
+
+The apps are not code-signed yet:
+
+- **Windows** – if SmartScreen shows *"Windows protected your PC"*, click **More info → Run anyway**.
+- **macOS** – the first time, right-click the app → **Open** (or *System Settings → Privacy & Security →
+  Open Anyway*). If macOS says the app *"is damaged"*, run
+  \`xattr -dr com.apple.quarantine "/Applications/Mark O Down.app"\` in Terminal.
+- **Linux AppImage** – make it executable first: \`chmod +x Mark.O.Down_${v}_amd64.AppImage\`.
 `
 }
 

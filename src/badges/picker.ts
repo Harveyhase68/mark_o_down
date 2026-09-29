@@ -9,7 +9,7 @@ import { renderIconsTab } from './tabs/icons'
 import { renderFilesTab } from './tabs/files'
 import { renderUrlTab } from './tabs/url'
 import { setTagAttr } from '../md/htmlTags'
-import { el, field, textInput } from '../editor/dom'
+import { el, field, modKey, textInput } from '../editor/dom'
 import { openModal } from '../editor/modal'
 import { t, type MessageKey } from '../i18n'
 
@@ -178,7 +178,7 @@ export function openPicker(opts: PickerOptions): Promise<PickedImage | null> {
     // Enter in a text field (or Ctrl+Enter anywhere) inserts; Esc/outside click: the modal frame
     box.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' || !cur.src) return
-      if (e.ctrlKey || (e.target as HTMLElement).tagName === 'INPUT') {
+      if (modKey(e) || (e.target as HTMLElement).tagName === 'INPUT') {
         e.preventDefault()
         insert()
       }

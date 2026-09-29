@@ -49,8 +49,10 @@ export async function clearRecent() {
   await save()
 }
 
-/** "C:\Users\me\Projekte\mark_o_down" → "…\Projekte\mark_o_down" */
+/** "C:\Users\me\Projekte\mark_o_down" → "…\Projekte\mark_o_down" (with "/" on macOS/Linux) */
 export function shortDir(path: string): string {
-  const parts = host.dirname(path).split(/[\\/]/)
-  return parts.length > 3 ? `…\\${parts.slice(-2).join('\\')}` : parts.join('\\')
+  const dir = host.dirname(path)
+  const sep = dir.includes('\\') ? '\\' : '/'
+  const parts = dir.split(/[\\/]/)
+  return parts.length > 3 ? `…${sep}${parts.slice(-2).join(sep)}` : parts.join(sep)
 }

@@ -77,6 +77,18 @@
         ],
         "displayLanguageSelector": false
       }
+    },
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/mark-o-down.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "linux/mark-o-down.desktop"
+      }
     }
   }
 }

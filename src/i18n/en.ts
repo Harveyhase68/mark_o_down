@@ -244,6 +244,8 @@ export const en: Messages = {
     'Providers, templates and icon sets as JSON. Placeholders: {x}, {x|raw}, {x|shields}, {x|hex}. Empty query parameters are removed. "cacheHours" = how long icon lists are cached. Tab indents; Esc closes without saving.',
   'config.reset': 'Restore defaults',
   'config.reveal': 'Show in Explorer',
+  'config.revealMac': 'Show in Finder',
+  'config.revealLinux': 'Show in file manager',
   'config.notSaved': 'Not saved: {error}',
   'config.broken': '{file} is invalid ({error}) – the defaults are used.',
   'config.notObject': 'The configuration must be a JSON object.',

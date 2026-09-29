@@ -8,7 +8,7 @@ import { en } from './en'
 import { fr } from './fr'
 import { es } from './es'
 import { it } from './it'
-import { store } from '../editor/dom'
+import { isMac, store } from '../editor/dom'
 
 export type Lang = 'de' | 'en' | 'fr' | 'es' | 'it'
 export type { MessageKey }
@@ -65,8 +65,20 @@ export function t(key: MessageKey, params?: Record<string, string | number>): st
 /** Text in a given language (not the current one), without placeholders. */
 export const tIn = (l: Lang, key: MessageKey): string => DICTIONARIES[l][key] ?? de[key] ?? key
 
-/** "Ctrl+Shift+S" in the words of the current language ("Strg+Umschalt+S", "Ctrl+Maj+S" …). */
-export function kbd(combo: string): string {
+/** macOS symbols, in the order macOS shows modifiers (⌥⇧⌘). */
+const MAC_KEYS: Record<string, [number, string]> = { Alt: [0, '⌥'], Shift: [1, '⇧'], Ctrl: [2, '⌘'] }
+
+/**
+ * "Ctrl+Shift+S" in the words of the current language ("Strg+Umschalt+S", "Ctrl+Maj+S" …);
+ * on macOS with symbols and Cmd instead of Ctrl ("⇧⌘S").
+ */
+export function kbd(combo: string, mac = isMac): string {
+  if (mac) {
+    const parts = combo.split('+')
+    const mods = parts.filter((p) => MAC_KEYS[p]).sort((a, b) => MAC_KEYS[a][0] - MAC_KEYS[b][0])
+    const rest = parts.filter((p) => !MAC_KEYS[p]).map((p) => (p === 'Enter' ? '↩' : p === 'Esc' ? 'esc' : p === 'Tab' ? '⇥' : p))
+    return mods.map((m) => MAC_KEYS[m][1]).join('') + rest.join('+')
+  }
   const words: Record<string, MessageKey> = { Ctrl: 'key.ctrl', Shift: 'key.shift', Alt: 'key.alt', Enter: 'key.enter', Esc: 'key.esc', Tab: 'key.tab' }
   return combo
     .split('+')

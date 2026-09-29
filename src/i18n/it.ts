@@ -244,6 +244,8 @@ export const it: Messages = {
     'Fornitori, modelli e set di icone in JSON. Segnaposto: {x}, {x|raw}, {x|shields}, {x|hex}. I parametri di query vuoti vengono rimossi. «cacheHours» = per quanto tempo gli elenchi di icone restano in cache. Tab rientra; Esc chiude senza salvare.',
   'config.reset': 'Ripristina predefiniti',
   'config.reveal': 'Mostra in Esplora file',
+  'config.revealMac': 'Mostra nel Finder',
+  'config.revealLinux': 'Mostra nel file manager',
   'config.notSaved': 'Non salvato: {error}',
   'config.broken': '{file} non è valido ({error}) – vengono usati i valori predefiniti.',
   'config.notObject': 'La configurazione deve essere un oggetto JSON.',

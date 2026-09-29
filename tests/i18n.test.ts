@@ -20,6 +20,13 @@ describe('translations', () => {
     })
   }
 
+  it('shows macOS shortcuts with symbols and Cmd', () => {
+    expect(kbd('Ctrl+Shift+S', true)).toBe('⇧⌘S')
+    expect(kbd('Ctrl+Alt', true)).toBe('⌥⌘')
+    expect(kbd('Ctrl+Enter', true)).toBe('⌘↩')
+    expect(kbd('F3', true)).toBe('F3')
+  })
+
   it('fills placeholders and localises shortcuts', () => {
     _setLangForTests('de')
     expect(t('save.question', { name: 'README.md' })).toBe('Änderungen an „README.md“ speichern?')

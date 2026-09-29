@@ -77,6 +77,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 .markdown-body th { font-weight: 600; } .markdown-body tr:nth-child(2n) { background: var(--soft); }
 .markdown-body .footnotes { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 .markdown-body [align="center"] { text-align: center; }
+.markdown-body [align="center"] > table { margin-left: auto; margin-right: auto; }
 @media print {
   :root { --fg: #000; --muted: #444; --bg: #fff; --soft: #f3f3f3; --link: #000; color-scheme: light; }
   .markdown-body { max-width: none; padding: 0; }

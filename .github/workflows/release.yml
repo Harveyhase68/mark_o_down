@@ -1,9 +1,10 @@
-# Builds the Windows installer and creates a GitHub release when a version tag is pushed:
+# Builds the installers for Windows, Linux and macOS and creates a GitHub release
+# when a version tag is pushed:
 #
-#   npm run release:version 0.2.0
-#   git commit -am "Release v0.2.0"
-#   git tag v0.2.0
-#   git push origin main v0.2.0
+#   npm run release:version 0.4.0
+#   git commit -am "Release v0.4.0"
+#   git tag v0.4.0
+#   git push origin main v0.4.0
 #
 # The release notes come from the "### x.y.z" section of the changelog in README.md.
 # The release is created as a draft: check it on GitHub, then "Publish release".
@@ -15,18 +16,76 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to (re)build, e.g. v0.2.0'
+        description: 'Existing tag to (re)build, e.g. v0.4.0'
         required: true
 
 permissions:
   contents: write
 
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
 jobs:
-  windows:
-    name: Windows installer
-    runs-on: windows-latest
-    env:
-      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # Checks, tests and the draft release the three builds upload into (created once,
+  # so parallel builds can't create duplicates).
+  prepare:
+    name: Checks and draft release
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Tag matches the app version
+        run: node scripts/set-version.mjs --check "$TAG"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      # the "### x.y.z" section of the changelog in README.md (fails if it's missing)
+      - name: Draft release with notes from the README changelog
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/release-notes.mjs "$TAG" > notes.md
+          find_id() { gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n 1; }
+          id=$(find_id)
+          if [ -z "$id" ]; then
+            pre=""
+            if [[ "$TAG" == *-* ]]; then pre="--prerelease"; fi
+            gh release create "$TAG" --draft --verify-tag --title "Mark O Down $TAG" --notes-file notes.md $pre
+            id=$(find_id)
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.name }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows installer
+            os: windows-latest
+            args: --bundles nsis
+          - name: Linux packages
+            os: ubuntu-22.04 # oldest supported glibc → runs on more distributions
+            args: --bundles deb,rpm,appimage
+          - name: macOS app (Apple Silicon + Intel)
+            os: macos-latest
+            args: --target universal-apple-darwin --bundles app,dmg
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,40 +97,27 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
 
-      - name: Tag matches the app version
-        run: node scripts/set-version.mjs --check ${{ env.TAG }}
-
-      # the "### x.y.z" section of the changelog in README.md (fails if it's missing)
-      - name: Release notes from the README changelog
-        id: notes
-        shell: bash
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
         run: |
-          {
-            echo 'body<<RELEASE_NOTES_EOF'
-            node scripts/release-notes.mjs "$TAG"
-            echo
-            echo 'RELEASE_NOTES_EOF'
-          } >> "$GITHUB_OUTPUT"
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Tests
-        run: npm test
-
-      - name: Build installer and create release
+      - name: Build and upload to the draft release
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ env.TAG }}
-          releaseName: Mark O Down ${{ env.TAG }}
-          releaseDraft: true
-          prerelease: ${{ contains(env.TAG, '-') }}
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          args: ${{ matrix.args }}
           uploadUpdaterJson: false
-          releaseBody: ${{ steps.notes.outputs.body }}
