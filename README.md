@@ -13,7 +13,7 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-**Version 0.4.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-040) · [Changelog](#changelog)
+**Version 0.5.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-050) · [Changelog](#changelog)
 
 </div>
 
@@ -21,13 +21,14 @@ Mark O Down is not a Markdown editor with a preview pane – the document *is* t
 headings, bold text, lists, links, images, tables and badges directly, and the file on disk stays
 clean Markdown.
 
-## What's new in 0.4.0
+## What's new in 0.5.0
 
-- 🍎🐧 **Now also for macOS and Linux** – a `.dmg` for Apple Silicon and Intel Macs, and
-  `.AppImage`, `.deb` and `.rpm` for Linux. With `⌘` shortcuts, *Open with…* for `.md` files,
-  and `⌘Q` asks about unsaved changes.
-- ↔️ **Center a table with one click** – cursor in the table, *Center*, done.
-- New in 0.3.0: five languages, `Ctrl+V` of images and links – see the [changelog](#changelog).
+- 💾 **Pick up where you left off** – like Notepad++: close the app in the middle of your work
+  and the document is back at the next start, *unsaved changes included* (the file itself is only
+  changed when you save). Can be switched off under *Help*.
+- ∑ **Math** – `$E=mc^2$`, `$$ … $$` and ` ```math ` shown as formulas, like on GitHub.
+- 🎨 **Syntax highlighting** in code blocks, **footnotes**, **superscript / subscript / highlight**.
+- 📜 Third-party licenses in the About dialog, more Markdown file extensions – see the [changelog](#changelog).
 
 ## Features
 
@@ -58,6 +59,8 @@ clean Markdown.
 - **Find & replace** with match case, whole word and regular expressions (`$1` groups).
 - **Safe** – changes by other programs are detected (reload or ask, never overwritten silently),
   unsaved work is recovered after a crash, recently opened files in the Open menu.
+- **Sessions like Notepad++** – closing the app keeps the document as it is, unsaved changes
+  included, and the next start continues with it. The file itself is only changed when you save.
 - **Open HTML** – converted to Markdown; a dialog lists exactly what Markdown can't keep.
 - **Export** – standalone HTML file, HTML to the clipboard, print. Document zoom 50–300 %.
 - **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document (`images/`)
@@ -174,10 +177,17 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
-### Unreleased
+### 0.5.0 – 2026-09-30
 
 **New**
 
+- **Sessions like Notepad++**: closing the app (✕, `Alt+F4`, `⌘Q`) no longer asks to save – the
+  document, unsaved changes included, is kept as a copy in the app data folder and the next start
+  continues with it (still marked unsaved, same cursor and scroll position); a saved file is simply
+  reopened. The file itself is only changed when you save. Closing the *document* (`Ctrl+W`) or
+  opening another file still asks. If the app is started with a file, or several windows were
+  closed with unsaved changes, the other unsaved states are offered instead of being lost.
+  *Help → Remember session on exit* switches it off (then closing asks as before).
 - **Footnotes** (`[^1]`) are shown and edited like on GitHub: the reference shows the number GitHub
   would show (by order of first reference, whatever the label), its note as tooltip; double-click
   jumps to the note. *Insert footnote* (`Ctrl+Alt+F`) adds the next number and its note at the end.
