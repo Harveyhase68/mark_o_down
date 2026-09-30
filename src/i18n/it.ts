@@ -82,6 +82,8 @@ export const it: Messages = {
   'menu.help': 'Guida…',
   'menu.about': 'Informazioni su Mark O Down',
   'menu.language': 'Lingua',
+  'menu.session': "Ricorda la sessione all'uscita",
+  'menu.sessionTip': "Come Notepad++: alla chiusura non viene chiesto nulla – il documento, modifiche non salvate comprese, torna al prossimo avvio. Il file resta invariato finché non salvi.",
 
   'save.question': 'Salvare le modifiche a «{name}»?',
   'link.insert': 'Inserisci collegamento',
@@ -177,6 +179,8 @@ export const it: Messages = {
   'guard.recoverText':
     'Mark O Down non è stato chiuso correttamente. Ci sono modifiche non salvate a «{name}» (aggiornate al {when}).\n\n«Ripristina» le apre – il file cambia solo al salvataggio.',
   'guard.restore': 'Ripristina',
+  'guard.recoverSessionText': "«{name}» ha ancora modifiche non salvate di un'altra finestra (stato del {when}).\n\n«Ripristina» le apre – il file viene modificato solo al salvataggio.",
+  'session.restored': "Ultima sessione ripresa – «{name}» ha modifiche non salvate",
   'guard.externalChange': 'Il file è stato modificato al di fuori di Mark O Down.',
 
   'loss.script': 'Script (<script>)',

@@ -87,6 +87,8 @@ export const de = {
   'menu.help': 'Hilfe…',
   'menu.about': 'Über Mark O Down',
   'menu.language': 'Sprache',
+  'menu.session': "Sitzung beim Beenden merken",
+  'menu.sessionTip': "Wie Notepad++: Beim Schließen wird nicht gefragt – das Dokument samt ungespeicherten Änderungen ist beim nächsten Start wieder da. Die Datei selbst bleibt unverändert, bis du speicherst.",
 
   // ------------------------------------------------------------ dialogs
   'save.question': 'Änderungen an „{name}“ speichern?',
@@ -188,6 +190,8 @@ export const de = {
   'guard.recoverText':
     'Mark O Down wurde nicht ordnungsgemäß beendet. Von „{name}“ gibt es ungespeicherte Änderungen (Stand {when}).\n\n„Wiederherstellen“ öffnet sie – die Datei selbst wird erst beim Speichern geändert.',
   'guard.restore': 'Wiederherstellen',
+  'guard.recoverSessionText': "Von „{name}“ gibt es noch ungespeicherte Änderungen aus einem anderen Fenster (Stand {when}).\n\n„Wiederherstellen“ öffnet sie – die Datei selbst wird erst beim Speichern geändert.",
+  'session.restored': "Letzte Sitzung fortgesetzt – „{name}“ hat ungespeicherte Änderungen",
   'guard.externalChange': 'Die Datei wurde außerhalb von Mark O Down geändert.',
 
   // ------------------------------------------------------------ HTML import: what gets lost

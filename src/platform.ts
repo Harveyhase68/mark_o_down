@@ -123,12 +123,18 @@ export async function fileHash(path: string): Promise<string | null> {
 export interface RecoveryData {
   /** Document path (null = never saved). */
   path: string | null
-  markdown: string
+  /** The unsaved document; null = no unsaved changes (a session only reopens the file). */
+  markdown: string | null
   eol: Eol
   bom: boolean
   /** Hash of the file on disk the changes are based on. */
   diskHash: string | null
   savedAt: number
+  /** Left on purpose by closing the app (a session to continue), not by a crash. */
+  session?: boolean
+  /** Cursor position and scroll offset. */
+  cursor?: number
+  scroll?: number
 }
 
 export async function recoveryWrite(data: RecoveryData): Promise<void> {

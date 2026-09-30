@@ -16,8 +16,8 @@ import { renderOptions } from './md/renderOptions'
 import { setupZoom } from './editor/zoom'
 import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
-import { createGuard } from './guard'
-import { Selection } from 'prosemirror-state'
+import { createGuard, sessionEnabled, setSessionEnabled } from './guard'
+import { Selection, TextSelection } from 'prosemirror-state'
 import { getLang, kbd, onLangChange, t, type MessageKey } from './i18n'
 
 // ------------------------------------------------------------------ state
@@ -86,11 +86,24 @@ const guard = createGuard({
   isDirty: () => isDirty(),
   markdown: () => markdown(),
   reload: () => reloadFromDisk(),
-  restore: (data) => {
-    setDocument(data.markdown, { path: data.path, eol: data.eol, bom: data.bom, hash: data.diskHash })
-    doc.saved = null // restored changes are unsaved
+  restore: async (data) => {
+    // reading the file also allows its images and finds the repository root for `/…` paths
+    const file = data.path ? await host.readFile(data.path).catch(() => null) : null
+    if (data.markdown === null) {
+      // a session without unsaved changes: just reopen the file (if it still exists)
+      if (!file) return false
+      setDocument(file.text, file)
+      void rememberRecent(file.path)
+    } else {
+      setDocument(data.markdown, { path: data.path, eol: data.eol, bom: data.bom, hash: data.diskHash, root: file?.root })
+      doc.saved = null // restored changes are unsaved
+    }
+    restorePosition(data.cursor, data.scroll)
     updateChrome()
+    return true
   },
+  confirmDiscard: () => confirmDiscard(),
+  position: () => ({ cursor: view.state.selection.head, scroll: $('#scroller').scrollTop }),
   busy: () => busy,
   flash: (m) => flash(m),
   markChanged: () => {
@@ -121,6 +134,7 @@ function toolbarActions(): Parameters<typeof createToolbar>[2] {
   find: () => findBar.open(false),
   toggleSource,
   sourceVisible: () => sourceVisible,
+  session: host.isTauri ? { enabled: sessionEnabled, toggle: () => setSessionEnabled(!sessionEnabled()) } : undefined,
   }
 }
 const findBar = createFindBar($('#workspace'), view)
@@ -166,6 +180,15 @@ function updateChrome() {
   statusEl.textContent = parts.join('   ·   ')
 
   if (sourceVisible) sourceEl.value = markdown()
+}
+
+/** Put the cursor and the scroll position back (a restored session). */
+function restorePosition(cursor?: number, scroll?: number) {
+  if (cursor !== undefined) {
+    const at = Math.max(0, Math.min(cursor, view.state.doc.content.size))
+    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(at))).setMeta('addToHistory', false))
+  }
+  if (scroll) requestAnimationFrame(() => ($('#scroller').scrollTop = scroll))
 }
 
 /** Short confirmation in the status bar. */
@@ -527,8 +550,11 @@ async function setupWindow(view: EditorView) {
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   const { getCurrentWebview } = await import('@tauri-apps/api/webview')
 
-  // closing the window (also Cmd+Q on macOS): Save / Don't save / Cancel
+  // closing the window (also Cmd+Q on macOS)
   await getCurrentWindow().onCloseRequested(async (e) => {
+    // remember the session: the document (unsaved changes included) comes back next time
+    if (sessionEnabled()) return guard.saveSession()
+    // otherwise: Save / Don't save / Cancel
     if (!(await confirmDiscard())) return e.preventDefault()
     // leaving on purpose: no recovery copy must survive (it would be offered next time)
     await guard.clearRecovery()
@@ -616,8 +642,8 @@ requestAnimationFrame(() => {
 void (async () => {
   const p = await host.initialFile()
   if (p) await openPath(p)
-  // after a crash: offer the unsaved changes that were left behind
-  await guard.offerRecovery()
+  // continue the last session, offer unsaved changes left by a crash
+  await guard.offerRecovery({ fileOpened: !!p })
 })()
 
 // Dev hook for testing in the browser console / pane.

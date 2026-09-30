@@ -109,6 +109,8 @@ export interface ToolbarActions {
   find: () => void
   toggleSource: () => void
   sourceVisible: () => boolean
+  /** "Remember session" (only in the app, not in the browser preview). */
+  session?: { enabled: () => boolean; toggle: () => void }
 }
 
 /** Builds (or rebuilds, e.g. after a language change) the toolbar into `el`. */
@@ -214,6 +216,16 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
         menu: () => [
           { label: t('menu.help'), shortcut: 'F1', run: actions.help },
           'separator',
+          ...(actions.session
+            ? [
+                {
+                  label: `${actions.session.enabled() ? '✓' : ' '}  ${t('menu.session')}`,
+                  title: t('menu.sessionTip'),
+                  run: actions.session.toggle,
+                },
+                'separator' as const,
+              ]
+            : []),
           { label: `${t('menu.language')} / Language`, disabled: true, run: () => {} },
           ...LANGUAGES.map((l) => ({
             label: `${l.code === getLang() ? '✓' : ' '}  ${l.name}`,

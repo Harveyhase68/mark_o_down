@@ -82,6 +82,8 @@ export const es: Messages = {
   'menu.help': 'Ayuda…',
   'menu.about': 'Acerca de Mark O Down',
   'menu.language': 'Idioma',
+  'menu.session': "Recordar la sesión al salir",
+  'menu.sessionTip': "Como Notepad++: al cerrar no se pregunta nada; el documento, con los cambios sin guardar, vuelve a estar en el próximo inicio. El archivo no cambia hasta que guardes.",
 
   'save.question': '¿Guardar los cambios de «{name}»?',
   'link.insert': 'Insertar enlace',
@@ -177,6 +179,8 @@ export const es: Messages = {
   'guard.recoverText':
     'Mark O Down no se cerró correctamente. Hay cambios sin guardar de «{name}» (a fecha de {when}).\n\n«Restaurar» los abre; el archivo solo cambia al guardar.',
   'guard.restore': 'Restaurar',
+  'guard.recoverSessionText': "«{name}» aún tiene cambios sin guardar de otra ventana (a fecha de {when}).\n\n«Restaurar» los abre; el archivo solo cambia al guardar.",
+  'session.restored': "Última sesión recuperada: «{name}» tiene cambios sin guardar",
   'guard.externalChange': 'El archivo se modificó fuera de Mark O Down.',
 
   'loss.script': 'Scripts (<script>)',

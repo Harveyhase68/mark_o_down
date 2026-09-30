@@ -82,6 +82,8 @@ export const en: Messages = {
   'menu.help': 'Help…',
   'menu.about': 'About Mark O Down',
   'menu.language': 'Language',
+  'menu.session': "Remember session on exit",
+  'menu.sessionTip': "Like Notepad++: closing does not ask – the document, unsaved changes included, is back at the next start. The file itself stays unchanged until you save.",
 
   'save.question': 'Save changes to “{name}”?',
   'link.insert': 'Insert link',
@@ -177,6 +179,8 @@ export const en: Messages = {
   'guard.recoverText':
     'Mark O Down was not closed properly. There are unsaved changes to “{name}” (as of {when}).\n\n“Restore” opens them – the file itself only changes when you save.',
   'guard.restore': 'Restore',
+  'guard.recoverSessionText': "\"{name}\" still has unsaved changes from another window (as of {when}).\n\n\"Restore\" opens them – the file itself is only changed when you save.",
+  'session.restored': "Last session continued – \"{name}\" has unsaved changes",
   'guard.externalChange': 'The file was changed outside of Mark O Down.',
 
   'loss.script': 'Scripts (<script>)',

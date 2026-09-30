@@ -82,6 +82,8 @@ export const fr: Messages = {
   'menu.help': 'Aide…',
   'menu.about': 'À propos de Mark O Down',
   'menu.language': 'Langue',
+  'menu.session': "Mémoriser la session à la fermeture",
+  'menu.sessionTip': "Comme Notepad++ : la fermeture ne pose pas de question – le document, modifications non enregistrées comprises, est de retour au prochain démarrage. Le fichier lui-même ne change pas tant que vous n'enregistrez pas.",
 
   'save.question': 'Enregistrer les modifications de « {name} » ?',
   'link.insert': 'Insérer un lien',
@@ -177,6 +179,8 @@ export const fr: Messages = {
   'guard.recoverText':
     'Mark O Down ne s’est pas fermé correctement. Il existe des modifications non enregistrées de « {name} » (état du {when}).\n\n« Restaurer » les ouvre – le fichier lui-même ne change qu’à l’enregistrement.',
   'guard.restore': 'Restaurer',
+  'guard.recoverSessionText': "« {name} » a encore des modifications non enregistrées d'une autre fenêtre (état du {when}).\n\n« Restaurer » les ouvre – le fichier lui-même n'est modifié qu'à l'enregistrement.",
+  'session.restored': "Dernière session reprise – « {name} » a des modifications non enregistrées",
   'guard.externalChange': 'Le fichier a été modifié en dehors de Mark O Down.',
 
   'loss.script': 'Scripts (<script>)',
