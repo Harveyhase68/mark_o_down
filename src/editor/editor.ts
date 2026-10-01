@@ -2,6 +2,7 @@ import { EditorState, Plugin, type Command } from 'prosemirror-state'
 import { footnotePlugin, insertFootnote } from './footnotes'
 import { highlightPlugin } from './highlight'
 import { mathBlockView, mathInlineView, mathPlugin } from './math'
+import { defListEnter } from './deflist'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { Fragment, Slice, type Node as PMNode, type ResolvedPos } from 'prosemirror-model'
 import { keymap } from 'prosemirror-keymap'
@@ -212,7 +213,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
     'Shift-Mod-9': toggleBlockquote(),
     'Shift-Enter': chainCommands(exitCode, insertHardBreak),
     'Mod-Enter': chainCommands(exitCode, insertHardBreak),
-    Enter: chainCommands(cellLineBreak, splitItem),
+    Enter: chainCommands(defListEnter, cellLineBreak, splitItem),
     Tab: chainCommands(nextCellOrNewRow, sinkListItem(N.list_item)),
     'Shift-Tab': chainCommands(goToNextCell(-1), liftListItem(N.list_item)),
     ...hooks.extraKeys,

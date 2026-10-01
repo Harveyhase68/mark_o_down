@@ -4,6 +4,7 @@ import { InputRule, inputRules, textblockTypeInputRule, wrappingInputRule } from
 import type { MarkType } from 'prosemirror-model'
 import { TextSelection } from 'prosemirror-state'
 import { schema } from '../md/schema'
+import { defListInputRule } from './deflist'
 
 const N = schema.nodes
 const K = schema.marks
@@ -25,6 +26,7 @@ function markRule(pattern: RegExp, type: MarkType, attrs: (m: RegExpMatchArray) 
 export function buildInputRules() {
   return inputRules({
     rules: [
+      defListInputRule,
       textblockTypeInputRule(/^(#{1,6})\s$/, N.heading, (m) => ({ level: m[1].length })),
       wrappingInputRule(/^\s*>\s$/, N.blockquote),
       wrappingInputRule(/^\s*([-+*])\s$/, N.bullet_list, (m) => ({ bullet: m[1] })),

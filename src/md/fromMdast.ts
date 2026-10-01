@@ -17,6 +17,12 @@ const K = schema.marks
 const TAG_OPEN = /^<(sup|sub|mark)(?:\s[^<>]*)?>$/i
 const tagClose = (tag: string) => new RegExp(`^</${tag}\\s*>$`, 'i')
 
+/**
+ * Links get a number: two adjacent links with the same target (`[a](x)[b](x)`) are
+ * two links, not one (ProseMirror merges equal marks).
+ */
+let linkSeq = 0
+
 const CENTER_OPEN = /^<div\s+align\s*=\s*(["']?)center\1\s*>$/i
 const CENTER_CLOSE = /^<\/div\s*>$/i
 const CENTER_BLOCK = /^(<div\s+align\s*=\s*(?:"center"|'center'|center)\s*>)\s*([\s\S]*?)\s*(<\/div\s*>)$/i
@@ -81,7 +87,7 @@ function htmlTokensToInline(tokens: HtmlToken[]): PMNode[] {
     else if (t.kind === 'br') out.push(S.hard_break.create({ html: t.tag }, null, marks))
     else if (t.kind === 'a') {
       const a = tagAttrs(t.tag)
-      marks = [K.link.create({ href: a.href ?? '', title: a.title ?? null, html: t.tag })]
+      marks = [K.link.create({ href: a.href ?? '', title: a.title ?? null, html: t.tag, seq: ++linkSeq })]
     } else if (t.kind === '/a') marks = []
     else if (out.length || marks.length) out.push(t.text.includes('\n') ? S.soft_break.create(null, null, marks) : schema.text(' ', marks))
   }
@@ -170,6 +176,16 @@ export class MdastToPM {
 
       case 'list':
         return this.list(node)
+
+      case 'defList':
+        return S.def_list.create(
+          null,
+          node.children.map((c) =>
+            c.type === 'defListTerm'
+              ? S.def_term.create(null, this.inlines(c.children))
+              : S.def_desc.create({ spread: !!c.spread }, this.containerContent(c.children as M.RootContent[])),
+          ),
+        )
 
       case 'footnoteDefinition':
         return S.footnote_def.create({ label: node.label ?? node.identifier }, this.containerContent(node.children as M.RootContent[]))
@@ -260,7 +276,7 @@ export class MdastToPM {
         const close = nodes[end]
         if (end > i + 1 && close.type === 'html' && A_CLOSE.test(close.value)) {
           const a = tagAttrs(node.value)
-          const link = K.link.create({ href: a.href ?? '', title: a.title ?? null, html: node.value })
+          const link = K.link.create({ href: a.href ?? '', title: a.title ?? null, html: node.value, htmlClose: close.value, seq: ++linkSeq })
           for (const inner of nodes.slice(i + 1, end)) this.inline(inner, link.addToSet(marks), out)
           i = end
           continue
@@ -273,7 +289,9 @@ export class MdastToPM {
         const end = nodes.findIndex((n, j) => j > i && n.type === 'html' && close.test(n.value))
         const nested = nodes.slice(i + 1, end).some((n) => n.type === 'html' && TAG_OPEN.exec(n.value)?.[1].toLowerCase() === tag)
         if (end > i + 1 && !nested) {
-          const mark = K[HTML_TAG_MARKS[tag]].create({ open: (node as M.Html).value, close: (nodes[end] as M.Html).value })
+          const inner = nodes.slice(i + 1, end)
+          const nest = marks.some((m) => FORMATTING.has(m.type.name)) ? 'inner' : inner.some((c) => FORMATTING_MDAST.has(c.type)) ? 'outer' : null
+          const mark = K[HTML_TAG_MARKS[tag]].create({ open: (node as M.Html).value, close: (nodes[end] as M.Html).value, nest })
           out.push(...this.inlines(nodes.slice(i + 1, end), mark.addToSet(marks)))
           i = end
           continue
@@ -302,16 +320,24 @@ export class MdastToPM {
         return this.wrap(node.children, K.strong.create({ marker: this.firstChar(node) === '_' ? '_' : '*' }), marks, out)
       case 'delete':
         return this.wrap(node.children, K.strike.create(), marks, out)
+      // extended syntax ^x^ / ~x~ / ==x==
+      case 'superscript':
+      case 'subscript':
+      case 'mark': {
+        const type = K[node.type === 'superscript' ? 'sup' : node.type === 'subscript' ? 'sub' : 'highlight']
+        const nest = marks.some((m) => FORMATTING.has(m.type.name)) ? 'inner' : node.children.some((c) => FORMATTING_MDAST.has(c.type)) ? 'outer' : null
+        return this.wrap(node.children, type.create({ md: true, nest }), marks, out)
+      }
       case 'link': {
         const c = this.firstChar(node)
         const literal = c !== '[' && c !== '<'
-        const attrs = { href: node.url, title: node.title ?? null, literal, nest: nesting(node, marks) }
+        const attrs = { href: node.url, title: node.title ?? null, literal, nest: nesting(node, marks), seq: ++linkSeq }
         return this.wrap(node.children, K.link.create(attrs), marks, out)
       }
       case 'linkReference': {
         const def = this.defs[node.identifier]
         const ref = { identifier: node.identifier, label: node.label ?? node.identifier, referenceType: node.referenceType }
-        return this.wrap(node.children, K.link.create({ href: def?.url ?? '', title: def?.title ?? null, ref, nest: nesting(node, marks) }), marks, out)
+        return this.wrap(node.children, K.link.create({ href: def?.url ?? '', title: def?.title ?? null, ref, nest: nesting(node, marks), seq: ++linkSeq }), marks, out)
       }
       case 'image':
         out.push(S.image.create({ src: node.url, alt: node.alt ?? '', title: node.title ?? null }, null, marks))

@@ -111,10 +111,13 @@ export interface ToolbarActions {
   sourceVisible: () => boolean
   /** "Remember session" (only in the app, not in the browser preview). */
   session?: { enabled: () => boolean; toggle: () => void }
+  /** Extended syntax on/off (the toolbar is rebuilt after a change). */
+  extended: { enabled: () => boolean; toggle: () => void }
 }
 
 /** Builds (or rebuilds, e.g. after a language change) the toolbar into `el`. */
 export function createToolbar(el: HTMLElement, view: EditorView, actions: ToolbarActions) {
+  const ext = actions.extended.enabled()
   el.replaceChildren()
   const inList = (type: typeof N.bullet_list) => (s: EditorState) => currentList(s)?.node.type === type
   const inNode = (type: typeof N.blockquote) => (s: EditorState) => {
@@ -158,9 +161,10 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
       { id: 'italic', title: tip('tb.italic', 'Ctrl+I'), cmd: toggleMark(K.em), active: (s) => markActive(s, K.em) },
       { id: 'strike', title: tip('tb.strike', 'Ctrl+Shift+X'), cmd: toggleMark(K.strike), active: (s) => markActive(s, K.strike) },
       { id: 'code', title: tip('tb.code', 'Ctrl+E'), cmd: toggleMark(K.code), active: (s) => markActive(s, K.code) },
-      { id: 'sup', title: tip('tb.sup'), cmd: toggleMark(K.sup), active: (s) => markActive(s, K.sup) },
-      { id: 'sub', title: tip('tb.sub'), cmd: toggleMark(K.sub), active: (s) => markActive(s, K.sub) },
-      { id: 'highlight', title: tip('tb.highlight'), cmd: toggleMark(K.highlight), active: (s) => markActive(s, K.highlight) },
+      // written as ^x^ / ~x~ / ==x== with the extended syntax, else as HTML tags (GitHub)
+      { id: 'sup', title: `${t('tb.sup')} (${ext ? '^x^' : '<sup>'})`, cmd: toggleMark(K.sup, { md: ext }), active: (s) => markActive(s, K.sup) },
+      { id: 'sub', title: `${t('tb.sub')} (${ext ? '~x~' : '<sub>'})`, cmd: toggleMark(K.sub, { md: ext }), active: (s) => markActive(s, K.sub) },
+      { id: 'highlight', title: `${t('tb.highlight')} (${ext ? '==x==' : '<mark>'})`, cmd: toggleMark(K.highlight, { md: ext }), active: (s) => markActive(s, K.highlight) },
     ],
     [
       { id: 'bullet', title: tip('tb.bullet', 'Ctrl+Shift+8'), cmd: toggleList(N.bullet_list), active: inList(N.bullet_list) },
@@ -216,6 +220,11 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
         menu: () => [
           { label: t('menu.help'), shortcut: 'F1', run: actions.help },
           'separator',
+          {
+            label: `${ext ? '✓' : ' '}  ${t('menu.extended')}`,
+            title: t('menu.extendedTip'),
+            run: actions.extended.toggle,
+          },
           ...(actions.session
             ? [
                 {

@@ -39,6 +39,15 @@ function lineStart(text: string, offset: number, floor: number): number {
   return i === floor || text[i - 1] === '\n' ? i : offset
 }
 
+/**
+ * End of a block without trailing line breaks: some extensions (definition lists)
+ * count the line break after the block as part of it; it belongs to the gap.
+ */
+function blockEnd(text: string, start: number, end: number): number {
+  while (end > start && text[end - 1] === '\n') end--
+  return end
+}
+
 function withAttrs(node: PMNode, attrs: Record<string, unknown>, content = node.content): PMNode {
   return node.type.create({ ...node.attrs, ...attrs }, content, node.marks)
 }
@@ -57,7 +66,7 @@ export function importMarkdown(text: string, opts: { track?: boolean } = {}): Im
   let lead = ''
   children.forEach((child, i) => {
     const start = lineStart(text, child.position!.start.offset!, prevEnd)
-    const end = child.position!.end.offset!
+    const end = blockEnd(text, start, child.position!.end.offset!)
     let node = conv.block(child)
     if (i === 0) lead = text.slice(0, start)
     if (track) {
@@ -76,7 +85,7 @@ function trackListItems(list: PMNode, mdList: M.List, text: string, listStart: n
   let prevEnd = listStart
   mdList.children.forEach((mdItem, j) => {
     const start = j === 0 ? listStart : lineStart(text, mdItem.position!.start.offset!, prevEnd)
-    const end = mdItem.position!.end.offset!
+    const end = blockEnd(text, start, mdItem.position!.end.offset!)
     items.push(withAttrs(list.child(j), { mdSrc: text.slice(start, end), mdIdx: j, mdGap: j === 0 ? null : text.slice(prevEnd, start) }))
     prevEnd = end
   })

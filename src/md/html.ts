@@ -4,13 +4,12 @@
 
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
-import remarkFrontmatter from 'remark-frontmatter'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import type { Element, Root as HRoot } from 'hast'
 import type { HLJSApi } from 'highlight.js'
-import { remarkMath } from './math'
+import { extendedSyntaxOn, markdownPlugins } from './markdown'
+import { defListHastHandlers } from 'mdast-util-definition-list'
 import type { MathRenderer } from './mathRender'
 
 export interface RenderOptions {
@@ -52,20 +51,21 @@ function rehypeCodeAndMath(opts: RenderOptions) {
   }
 }
 
+// the same Markdown dialect as the editor (GFM, math, front matter, extended syntax if on)
 const processor = (opts: RenderOptions = {}) =>
   unified()
     .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkMath)
-    .use(remarkFrontmatter, ['yaml', 'toml']) // front matter is metadata, not content
-    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(markdownPlugins()) // front matter is metadata, not content
+    .use(remarkRehype, { allowDangerousHtml: true, handlers: defListHastHandlers as never })
     .use(rehypeCodeAndMath, opts)
     .use(rehypeStringify, { allowDangerousHtml: true })
-const plain = processor()
+const plain = new Map<boolean, ReturnType<typeof processor>>()
 
 /** HTML fragment of the document body. */
 export function renderHtml(markdown: string, opts?: RenderOptions): string {
-  return String((opts?.highlight || opts?.math ? processor(opts) : plain).processSync(markdown)).trim()
+  let p = plain.get(extendedSyntaxOn())
+  if (!p) plain.set(extendedSyntaxOn(), (p = processor()))
+  return String((opts?.highlight || opts?.math ? processor(opts) : p).processSync(markdown)).trim()
 }
 
 /** Title for a standalone page: first heading, else the file name. */
@@ -138,6 +138,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 :root { --hl-keyword: #cf222e; --hl-title: #8250df; --hl-constant: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #59636e; --hl-tag: #116329; --hl-bullet: #3b2300; --hl-add-bg: #dafbe1; --hl-del-bg: #ffebe9; }
 @media (prefers-color-scheme: dark) { :root { --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-constant: #79c0ff; --hl-string: #a5d6ff; --hl-builtin: #ffa657; --hl-comment: #9198a1; --hl-tag: #7ee787; --hl-bullet: #f2cc60; --hl-add-bg: #033a16; --hl-del-bg: #67060c; } }
 .markdown-body mark { padding: 0 .1em; background: #fff8c5; color: inherit; }
+.markdown-body dl { padding: 0; } .markdown-body dl dt { margin-top: 16px; font-style: italic; font-weight: 600; } .markdown-body dl dd { margin: 0 0 16px; padding: 0 16px; }
 @media print {
   :root { --fg: #000; --muted: #444; --bg: #fff; --soft: #f3f3f3; --link: #000; color-scheme: light; --hl-keyword: #cf222e; --hl-title: #8250df; --hl-constant: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #59636e; --hl-tag: #116329; --hl-bullet: #3b2300; --hl-add-bg: #dafbe1; --hl-del-bg: #ffebe9; }
   .markdown-body { max-width: none; padding: 0; }

@@ -6,7 +6,8 @@
 
 import type { Mark, Node as PMNode } from 'prosemirror-model'
 import type * as M from 'mdast'
-import type { StyleHints } from './markdown'
+import { extendedSyntaxOn, type StyleHints } from './markdown'
+import { plainChars } from './extended'
 import { schema } from './schema'
 import { setTagAttr, tagAttrs } from './htmlTags'
 
@@ -58,6 +59,17 @@ function blockNode(node: PMNode): M.RootContent | null {
       return a.fence
         ? ({ type: 'code', lang: 'math', meta: null, value: node.textContent, data: mdo({ fence: a.fence }) } as M.Code)
         : ({ type: 'math', meta: a.meta || null, value: node.textContent } as M.RootContent)
+    case 'def_list': {
+      const children: M.RootContent[] = []
+      node.forEach((c) =>
+        children.push(
+          (c.type.name === 'def_term'
+            ? { type: 'defListTerm', children: phrasing(c) }
+            : { type: 'defListDescription', spread: c.attrs.spread, children: flow(c) }) as unknown as M.RootContent,
+        ),
+      )
+      return { type: 'defList', children } as unknown as M.RootContent
+    }
     case 'footnote_def':
       return { type: 'footnoteDefinition', identifier: footnoteId(a.label), label: a.label, children: flow(node) as M.BlockContent[] }
     default:
@@ -144,7 +156,7 @@ function markToParent(mark: Mark): M.Parent & M.PhrasingContent {
   const a = mark.attrs
   switch (mark.type.name) {
     case 'link':
-      if (a.html) return { type: 'mdoHtmlTag', open: syncTag(a.html, { href: a.href, title: a.title }), close: '</a>', children: [] } as unknown as M.Link
+      if (a.html) return { type: 'mdoHtmlTag', open: syncTag(a.html, { href: a.href, title: a.title }), close: a.htmlClose ?? '</a>', children: [] } as unknown as M.Link
       return a.ref
         ? { type: 'linkReference', identifier: a.ref.identifier, label: a.ref.label, referenceType: a.ref.referenceType, children: [] }
         : ({ type: 'link', url: a.href, title: a.title || null, children: [], data: mdo({ literal: a.literal || undefined }) } as M.Link)
@@ -157,6 +169,7 @@ function markToParent(mark: Mark): M.Parent & M.PhrasingContent {
     case 'sup':
     case 'sub':
     case 'highlight':
+      if (a.md) return { type: mark.type.name === 'sup' ? 'superscript' : mark.type.name === 'sub' ? 'subscript' : 'mark', children: [] } as unknown as M.Link
       return { type: 'mdoHtmlTag', open: a.open, close: a.close, children: [] } as unknown as M.Link
     default:
       throw new Error(`Unknown mark: ${mark.type.name}`)
@@ -165,7 +178,7 @@ function markToParent(mark: Mark): M.Parent & M.PhrasingContent {
 
 /** On equal extent: a link marked `outer` goes outside formatting, otherwise schema order. */
 const MARK_ORDER = Object.keys(schema.marks)
-const tieRank = (m: Mark) => (m.type.name === 'link' && m.attrs.nest === 'outer' ? -1 : MARK_ORDER.indexOf(m.type.name))
+const tieRank = (m: Mark) => (m.attrs.nest === 'outer' ? -1 : MARK_ORDER.indexOf(m.type.name))
 
 /** `inTable`: Markdown line breaks can't exist in a table cell, so breaks become `<br>`. */
 export function phrasing(parent: PMNode, inTable = false): M.PhrasingContent[] {
@@ -247,8 +260,9 @@ export function phrasing(parent: PMNode, inTable = false): M.PhrasingContent[] {
     }
   })
   const out = expandHtmlTags(root)
-  // dollars that can't form a formula ("from $5 to $10", see md/math.ts) need no escaping
-  if (!couldFormMath(list.map((it) => (it.text !== undefined && !it.code ? it.text : ' ')).join(''))) markPlainDollars(out)
+  // `$ ^ ~ =` that can't form a span ("from $5 to $10", see md/math.ts) need no escaping
+  const plain = plainChars(list.map((it) => (it.text !== undefined && !it.code ? it.text : ' ')).join(''), extendedSyntaxOn(), couldFormMath)
+  if (plain) markPlain(out, plain)
   return out
 }
 
@@ -257,10 +271,10 @@ export function couldFormMath(text: string): boolean {
   return /\$\$[^]*\$\$/.test(text) || /(?<!\$)\$(?=[^\s$])[^]*?(?<=[^\s$])\$(?![$\d])/.test(text)
 }
 
-function markPlainDollars(nodes: M.PhrasingContent[]) {
+function markPlain(nodes: M.PhrasingContent[], plain: string) {
   for (const n of nodes) {
-    if (n.type === 'text' && n.value.includes('$')) n.data = { ...n.data, ...mdo({ plainDollars: true }) }
-    if ('children' in n) markPlainDollars(n.children as M.PhrasingContent[])
+    if (n.type === 'text' && [...plain].some((c) => n.value.includes(c))) n.data = { ...n.data, ...mdo({ plain }) }
+    if ('children' in n) markPlain(n.children as M.PhrasingContent[], plain)
   }
 }
 

@@ -17,6 +17,12 @@ import { setupZoom } from './editor/zoom'
 import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
 import { createGuard, sessionEnabled, setSessionEnabled } from './guard'
+import { extendedSyntaxOn, setExtendedSyntax } from './md/markdown'
+import { store } from './editor/dom'
+
+// the Markdown dialect: extended syntax (Pandoc/Obsidian) on by default
+const EXTENDED_KEY = 'mod-extended'
+setExtendedSyntax(store.get<boolean>(EXTENDED_KEY, true))
 import { Selection, TextSelection } from 'prosemirror-state'
 import { getLang, kbd, onLangChange, t, type MessageKey } from './i18n'
 
@@ -135,6 +141,7 @@ function toolbarActions(): Parameters<typeof createToolbar>[2] {
   toggleSource,
   sourceVisible: () => sourceVisible,
   session: host.isTauri ? { enabled: sessionEnabled, toggle: () => setSessionEnabled(!sessionEnabled()) } : undefined,
+  extended: { enabled: extendedSyntaxOn, toggle: () => switchExtendedSyntax(!extendedSyntaxOn()) },
   }
 }
 const findBar = createFindBar($('#workspace'), view)
@@ -180,6 +187,24 @@ function updateChrome() {
   statusEl.textContent = parts.join('   ·   ')
 
   if (sourceVisible) sourceEl.value = markdown()
+}
+
+/**
+ * Extended syntax on/off: the open document is read again in the other dialect
+ * (its text stays the same; unsaved changes stay unsaved). Undo history starts anew.
+ */
+function switchExtendedSyntax(on: boolean) {
+  const md = markdown() // still in the current dialect
+  const dirty = isDirty()
+  const cursor = view.state.selection.head
+  const scroll = $('#scroller').scrollTop
+  setExtendedSyntax(on)
+  store.set(EXTENDED_KEY, on)
+  setDocument(md, { path: doc.path, eol: doc.eol, bom: doc.bom, mixedEol: doc.mixedEol, hash: doc.diskHash, root: doc.root, suggested: doc.suggested })
+  if (dirty) doc.saved = null
+  restorePosition(cursor, scroll)
+  toolbar = createToolbar($('#toolbar'), view, toolbarActions())
+  updateChrome()
 }
 
 /** Put the cursor and the scroll position back (a restored session). */

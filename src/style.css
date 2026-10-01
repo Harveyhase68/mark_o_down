@@ -1735,3 +1735,28 @@ body.show-source #source-pane {
   font: 11.5px/1.45 var(--mono);
   white-space: pre-wrap;
 }
+
+/* Definition lists (extended syntax), styled like GitHub's <dl> */
+.md-editor dl {
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.md-editor dt {
+  margin-top: 12px;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.md-editor dl > dt:first-child {
+  margin-top: 0;
+}
+
+.md-editor dd {
+  margin: 0 0 8px;
+  padding: 0 16px;
+}
+
+.md-editor dd > :last-child {
+  margin-bottom: 0;
+}

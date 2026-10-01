@@ -10,6 +10,15 @@ import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter'
 import { remarkMath } from './math'
+import { extendedFromMarkdown, extendedHandlers, extendedSyntax, extendedToMarkdown } from './extended'
+import type { PluggableList, Processor } from 'unified'
+
+/** unified plugin: the extended syntax. */
+function remarkExtended(this: Processor) {
+  const data = this.data() as { micromarkExtensions?: unknown[]; fromMarkdownExtensions?: unknown[] }
+  ;(data.micromarkExtensions ??= []).push(...extendedSyntax())
+  ;(data.fromMarkdownExtensions ??= []).push(...extendedFromMarkdown())
+}
 import { mathToMarkdown } from 'mdast-util-math'
 import { toMarkdown, defaultHandlers, type Handle, type Options, type State } from 'mdast-util-to-markdown'
 import { gfmToMarkdown } from 'mdast-util-gfm'
@@ -20,7 +29,27 @@ import type { Nodes, Root, Link, Table } from 'mdast'
 
 const FRONTMATTER = ['yaml', 'toml'] as const
 
-const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkFrontmatter, [...FRONTMATTER])
+/** Extended syntax (^sup^, ~sub~, ==mark==, definition lists – see extended.ts); off = exactly GitHub. */
+let extended = true
+export const extendedSyntaxOn = () => extended
+
+/** unified plugins of the Markdown dialect in use (also for the HTML export). */
+export function markdownPlugins(): PluggableList {
+  return [
+    [remarkGfm, { singleTilde: !extended }], // with the extended syntax, `~x~` is subscript
+    remarkMath,
+    [remarkFrontmatter, [...FRONTMATTER]],
+    ...(extended ? [remarkExtended] : []),
+  ]
+}
+
+let processor = unified().use(remarkParse).use(markdownPlugins())
+
+export function setExtendedSyntax(on: boolean) {
+  if (on === extended) return
+  extended = on
+  processor = unified().use(remarkParse).use(markdownPlugins())
+}
 
 export function parseMarkdown(text: string): Root {
   return processor.parse(text) as Root
@@ -43,8 +72,8 @@ export interface StyleHints {
   literal?: boolean
   pipeAlign?: boolean
   centerTag?: boolean
-  /** Text in a paragraph with fewer than two `$`: no math can start there, so `$` needs no escape. */
-  plainDollars?: boolean
+  /** Characters of this text that can't form a span in its paragraph ("costs $5"): no escaping. */
+  plain?: string
 }
 
 function hints(node: Nodes): StyleHints {
@@ -133,11 +162,12 @@ const handlers: Options['handlers'] = {
   },
   link,
   table,
-  // `$` is escaped only where a formula could form (see plainDollars): "costs $5" stays as it is
+  // `$ ^ ~ =` are escaped only where a span could form (see plain): "costs $5" stays as it is
   text: (node, parent, state, info) => {
-    if (!hints(node as Nodes).plainDollars) return defaultHandlers.text(node as never, parent, state, info)
+    const plain = hints(node as Nodes).plain
+    if (!plain) return defaultHandlers.text(node as never, parent, state, info)
     const saved = state.unsafe
-    state.unsafe = saved.filter((p) => !(p.character === '$' && !p.atBreak))
+    state.unsafe = saved.filter((p) => p.atBreak || !plain.includes(p.character))
     try {
       return defaultHandlers.text(node as never, parent, state, info)
     } finally {
@@ -163,17 +193,19 @@ const baseOptions: Options = {
   fences: true,
   rule: '-',
   listItemIndent: 'one',
-  handlers,
+  handlers: { ...extendedHandlers, ...handlers },
   // `<div align="center">`/`</div>` must be separated by blank lines, or the
   // Markdown inside would be swallowed by the HTML block.
   join: [(left, right) => (hints(left).centerTag || hints(right).centerTag ? 1 : undefined)],
   extensions: [gfmToMarkdown(), mathToMarkdown(), frontmatterToMarkdown([...FRONTMATTER])],
 }
+const extendedOptions: Options = { ...baseOptions, extensions: [...baseOptions.extensions!, extendedToMarkdown] }
 
 /** Serialize mdast; returns Markdown without the trailing newline. */
 export function stringifyMarkdown(tree: Root | Nodes, overrides?: Partial<Options>): string {
   const root: Root = tree.type === 'root' ? tree : { type: 'root', children: [tree as Root['children'][number]] }
-  const out = toMarkdown(root, overrides ? { ...baseOptions, ...overrides } : baseOptions)
+  const options = extended ? extendedOptions : baseOptions
+  const out = toMarkdown(root, overrides ? { ...options, ...overrides } : options)
   return out.replace(/\n$/, '')
 }
 

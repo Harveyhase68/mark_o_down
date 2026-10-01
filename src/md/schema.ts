@@ -113,6 +113,28 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: (node) => ['pre', { 'data-lang': node.attrs.lang || '' }, ['code', 0]],
   },
 
+  // Definition list (extended syntax): `Term` / `: Definition`
+  def_list: {
+    group: 'block',
+    content: '(def_term def_desc+)+',
+    attrs: { ...srcAttrs },
+    parseDOM: [{ tag: 'dl' }],
+    toDOM: () => ['dl', 0],
+  },
+  def_term: {
+    content: 'inline*',
+    defining: true,
+    parseDOM: [{ tag: 'dt' }],
+    toDOM: () => ['dt', 0],
+  },
+  def_desc: {
+    content: 'block+',
+    defining: true,
+    attrs: { spread: { default: false } },
+    parseDOM: [{ tag: 'dd' }],
+    toDOM: () => ['dd', 0],
+  },
+
   // GFM footnote `[^label]: …`. Shown where it is in the source; numbered (like
   // GitHub, by first reference) with decorations, see editor/footnotes.ts.
   footnote_def: {
@@ -274,7 +296,7 @@ const marks: Record<string, MarkSpec> = {
   sub: htmlTagMark('sub', 'sup sub'),
   highlight: htmlTagMark('mark'),
   link: {
-    attrs: { href: { default: '' }, title: { default: null }, ref: { default: null }, literal: { default: false }, nest: { default: null }, html: { default: null } },
+    attrs: { href: { default: '' }, title: { default: null }, ref: { default: null }, literal: { default: false }, nest: { default: null }, html: { default: null }, htmlClose: { default: null }, seq: { default: null } },
     inclusive: false,
     parseDOM: [{ tag: 'a[href]', getAttrs: (dom) => ({ href: (dom as HTMLElement).getAttribute('href'), title: (dom as HTMLElement).getAttribute('title') }) }],
     toDOM: (mark) => ['a', { href: mark.attrs.href, title: mark.attrs.title ?? mark.attrs.href }, 0],
@@ -288,7 +310,8 @@ const marks: Record<string, MarkSpec> = {
 /** Formatting written as an HTML tag pair (`<sup>2</sup>`). */
 function htmlTagMark(tag: string, excludes?: string): MarkSpec {
   return {
-    attrs: { open: { default: `<${tag}>` }, close: { default: `</${tag}>` } },
+    // md: written as ^x^ / ~x~ / ==x== (extended syntax); nest: like link.nest
+    attrs: { open: { default: `<${tag}>` }, close: { default: `</${tag}>` }, md: { default: false }, nest: { default: null } },
     excludes,
     // a footnote reference is a <sup> too
     parseDOM: [{ tag, getAttrs: (dom) => ((dom as HTMLElement).hasAttribute('data-footnote') ? false : null) }],

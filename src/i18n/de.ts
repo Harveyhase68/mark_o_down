@@ -48,9 +48,9 @@ export const de = {
   'tb.italic': 'Kursiv',
   'tb.strike': 'Durchgestrichen',
   'tb.code': 'Code',
-  'tb.sup': 'Hochgestellt (<sup>)',
-  'tb.sub': 'Tiefgestellt (<sub>)',
-  'tb.highlight': 'Hervorheben (<mark>)',
+  'tb.sup': 'Hochgestellt',
+  'tb.sub': 'Tiefgestellt',
+  'tb.highlight': 'Hervorheben',
   'tb.footnote': 'Fußnote einfügen',
   'tb.math': 'Formel (LaTeX) – im leeren Absatz als Block',
   'tb.bullet': 'Aufzählung',
@@ -89,6 +89,8 @@ export const de = {
   'menu.language': 'Sprache',
   'menu.session': "Sitzung beim Beenden merken",
   'menu.sessionTip': "Wie Notepad++: Beim Schließen wird nicht gefragt – das Dokument samt ungespeicherten Änderungen ist beim nächsten Start wieder da. Die Datei selbst bleibt unverändert, bis du speicherst.",
+  'menu.extended': "Erweiterte Syntax (^hoch^, ~tief~, ==markiert==, Definitionslisten)",
+  'menu.extendedTip': "Wie Pandoc, Typora und Obsidian. GitHub zeigt diese Syntax als normalen Text – aus = genau wie GitHub (dann ist ~Text~ durchgestrichen).",
 
   // ------------------------------------------------------------ dialogs
   'save.question': 'Änderungen an „{name}“ speichern?',
