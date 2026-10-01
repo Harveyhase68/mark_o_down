@@ -13,7 +13,7 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-**Version 0.5.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-050) · [Changelog](#changelog)
+**Version 0.6.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-060) · [Changelog](#changelog)
 
 </div>
 
@@ -21,14 +21,12 @@ Mark O Down is not a Markdown editor with a preview pane – the document *is* t
 headings, bold text, lists, links, images, tables and badges directly, and the file on disk stays
 clean Markdown.
 
-## What's new in 0.5.0
+## What's new in 0.6.0
 
-- 💾 **Pick up where you left off** – like Notepad++: close the app in the middle of your work
-  and the document is back at the next start, *unsaved changes included* (the file itself is only
-  changed when you save). Can be switched off under *Help*.
-- ∑ **Math** – `$E=mc^2$`, `$$ … $$` and ` ```math ` shown as formulas, like on GitHub.
-- 🎨 **Syntax highlighting** in code blocks, **footnotes**, **superscript / subscript / highlight**.
-- 📜 Third-party licenses in the About dialog, more Markdown file extensions – see the [changelog](#changelog).
+- 📊 **Mermaid diagrams** – ` ```mermaid ` blocks are drawn like on GitHub; click to edit the source.
+- ✍️ **Extended syntax** – `^superscript^`, `~subscript~`, `==highlight==` and definition lists
+  (Pandoc / Typora / Obsidian style), switchable under *Help* – off = exactly like GitHub.
+- New in 0.5.0: sessions like Notepad++, math, syntax highlighting, footnotes – see the [changelog](#changelog).
 
 ## Features
 
@@ -184,7 +182,7 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
-### Unreleased
+### 0.6.0 – 2026-10-01
 
 **New**
 
