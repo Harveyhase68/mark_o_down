@@ -168,6 +168,8 @@ export class MdastToPM {
         const text = node.value ? schema.text(node.value) : null
         // ```math: GitHub shows it as a formula
         if (node.lang?.toLowerCase() === 'math' && !node.meta && fenceMatch) return S.math_block.create({ fence: fenceMatch[1].charAt(0) }, text)
+        // ```mermaid: a diagram
+        if (node.lang === 'mermaid' && !node.meta && fenceMatch) return S.mermaid_block.create({ fence: fenceMatch[1].charAt(0) }, text)
         return S.code_block.create(
           { lang: node.lang ?? null, meta: node.meta ?? null, fence: fenceMatch ? fenceMatch[1].charAt(0) : null, indented: !fenceMatch && this.slice(node) !== '' },
           text,

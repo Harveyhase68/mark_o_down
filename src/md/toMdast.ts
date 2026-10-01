@@ -55,6 +55,8 @@ function blockNode(node: PMNode): M.RootContent | null {
       return { ...listShell(node), children: items(node) }
     case 'table':
       return table(node)
+    case 'mermaid_block':
+      return { type: 'code', lang: 'mermaid', meta: null, value: node.textContent, data: mdo({ fence: a.fence }) } as M.Code
     case 'math_block':
       return a.fence
         ? ({ type: 'code', lang: 'math', meta: null, value: node.textContent, data: mdo({ fence: a.fence }) } as M.Code)

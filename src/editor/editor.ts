@@ -3,6 +3,7 @@ import { footnotePlugin, insertFootnote } from './footnotes'
 import { highlightPlugin } from './highlight'
 import { mathBlockView, mathInlineView, mathPlugin } from './math'
 import { defListEnter } from './deflist'
+import { mermaidBlockView, mermaidPlugin } from './mermaid'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { Fragment, Slice, type Node as PMNode, type ResolvedPos } from 'prosemirror-model'
 import { keymap } from 'prosemirror-keymap'
@@ -269,9 +270,9 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
   })
 
   // a new nodeViews object makes ProseMirror redraw all node views
-  const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView })
+  const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView, mermaid_block: mermaidBlockView })
   const redraw = () => view.setProps({ nodeViews: nodeViews() })
-  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
+  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), mermaidPlugin(redraw), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
   const stateFor = (doc: PMNode) => EditorState.create({ schema, doc, plugins })
 
   const view = new EditorView(mount, {

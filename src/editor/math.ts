@@ -107,11 +107,11 @@ const hasMath = (doc: PMNode) => {
   return found
 }
 
-/** Mark the math block the cursor is in (shows its source). */
+/** Mark the formula / diagram block the cursor is in (shows its source). */
 function editing(state: EditorState): DecorationSet {
   const { $from } = state.selection
   for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type === S.math_block) {
+    if ($from.node(d).type === S.math_block || $from.node(d).type === S.mermaid_block) {
       const pos = $from.before(d)
       return DecorationSet.create(state.doc, [Decoration.node(pos, pos + $from.node(d).nodeSize, { class: 'math-editing' })])
     }

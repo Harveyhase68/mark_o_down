@@ -1695,7 +1695,8 @@ body.show-source #source-pane {
 }
 
 /* not editing: the source stays in the document (for the cursor) but takes no space */
-.md-editor .math-block:not(.math-editing) > pre {
+.md-editor .math-block:not(.math-editing) > pre,
+.md-editor .mermaid-block:not(.math-editing) > pre {
   height: 0;
   margin: 0;
   padding: 0;
@@ -1704,6 +1705,8 @@ body.show-source #source-pane {
 }
 
 .md-editor .math-block.math-editing,
+.md-editor .mermaid-block.math-editing,
+.md-editor .mermaid-block:hover,
 .md-editor .math-block:hover {
   outline: 1px dashed var(--border);
   outline-offset: 2px;
@@ -1759,4 +1762,44 @@ body.show-source #source-pane {
 
 .md-editor dd > :last-child {
   margin-bottom: 0;
+}
+
+/* Mermaid diagrams: the diagram, the source below only while editing (shares the formula rules) */
+.md-editor .mermaid-block {
+  position: relative;
+  margin: 0 0 14px;
+  padding: 4px 0;
+  border-radius: 6px;
+}
+
+.md-editor .mermaid-block > .mermaid-preview {
+  overflow-x: auto;
+  text-align: center;
+  cursor: text;
+}
+
+.md-editor .mermaid-block > .mermaid-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.md-editor .mermaid-block > pre {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--code-bg);
+  font: 13px/1.5 var(--mono);
+  white-space: pre-wrap;
+}
+
+.md-editor .mermaid-placeholder {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.md-editor .mermaid-message {
+  margin-top: 4px;
+  color: #cf222e;
+  font: 12px var(--mono);
+  text-align: left;
 }

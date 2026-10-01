@@ -159,6 +159,19 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: () => ['div', { 'data-math-block': '', class: 'math-block' }, ['pre', 0]],
   },
 
+  // ```mermaid diagram (GitHub draws these); the text is the diagram source,
+  // editor/mermaid.ts shows the diagram (the source while editing)
+  mermaid_block: {
+    group: 'block',
+    content: 'text*',
+    marks: '',
+    code: true,
+    defining: true,
+    attrs: { fence: { default: '`' }, ...srcAttrs },
+    parseDOM: [{ tag: 'div[data-mermaid]', preserveWhitespace: 'full', contentElement: 'pre' }],
+    toDOM: () => ['div', { 'data-mermaid': '', class: 'mermaid-block' }, ['pre', 0]],
+  },
+
   // Markdown we don't edit structurally (html, front matter, …).
   // Its text *is* the Markdown source and is written back verbatim.
   raw_block: {

@@ -23,6 +23,7 @@ import {
 } from './commands'
 import { insertFootnote } from './footnotes'
 import { insertMath } from './math'
+import { insertMermaid } from './mermaid'
 
 const N = schema.nodes
 const K = schema.marks
@@ -46,6 +47,7 @@ const ICONS: Record<string, string> = {
   sub: svg('<path d="m4 5 8 11M12 5 4 16M16 15.5a2 2 0 0 1 4 .5c0 1.5-4 2.5-4 4.5h4"/>'),
   highlight: svg('<path d="m9 11-5 5v3h3l5-5M9 11l4-7 7 7-7 4z"/><path d="M4 21h16" opacity=".45" stroke-width="3"/>'),
   math: svg('<path d="M18 5H6l6 7-6 7h12"/>'),
+  diagram: svg('<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="16" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><path d="M10 5.5h4M17.5 8v8M6.5 8v8.5h7.5"/>'),
   footnote: svg('<path d="M4 7h10M4 12h10M4 17h6"/><path d="M18 4v6M16.5 5.5 18 4" stroke-width="1.8"/>'),
   bullet: svg('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/>'),
   ordered: svg('<path d="M10 6h10M10 12h10M10 18h10M4 4h1v4M4 8h2M6 18H4l2-2.5a1.2 1.2 0 0 0-2-1"/>'),
@@ -179,6 +181,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
       { id: 'emoji', title: tip('tb.emoji', 'Ctrl+.'), action: (v) => actions.emoji(v) },
       { id: 'codeblock', title: tip('tb.codeblock'), cmd: toggleCodeBlock },
       { id: 'math', title: tip('tb.math'), action: (v) => void insertMath(v), active: (s) => inNode(N.math_block)(s) },
+      { id: 'diagram', title: tip('tb.diagram'), action: (v) => insertMermaid(v), active: (s) => inNode(N.mermaid_block)(s) },
       { id: 'footnote', title: tip('tb.footnote', 'Ctrl+Alt+F'), cmd: insertFootnote },
       { id: 'hr', title: tip('tb.hr'), cmd: insertRule },
       { id: 'table', title: tip('tb.table'), cmd: insertTable(), enabled: (s) => !isInTable(s) },

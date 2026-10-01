@@ -39,6 +39,7 @@ export function buildInputRules() {
       // `$$` or ```math + space: a formula block (GitHub renders both)
       textblockTypeInputRule(/^\$\$\s$/, N.math_block),
       textblockTypeInputRule(/^```math\s$/, N.math_block, { fence: '`' }),
+      textblockTypeInputRule(/^```mermaid\s$/, N.mermaid_block),
       textblockTypeInputRule(/^```([\w+#-]*)\s$/, N.code_block, (m) => ({ lang: m[1] || null })),
       // "[ ] " / "[x] " at the start of a list item → task
       new InputRule(/^\[( |x|X)\]\s$/, (state, match, start, end) => {

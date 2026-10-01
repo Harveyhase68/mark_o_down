@@ -126,3 +126,24 @@ describe('definition list as the last block', () => {
     expect(exportMarkdown(after, meta)).toBe('Begriff\n: Erklärung\n\nDanach\n')
   })
 })
+
+describe('mermaid', () => {
+  const md = 'Text\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n~~~mermaid\ngraph TD\n  X --> Y\n~~~\n'
+
+  it('```mermaid blocks become diagram blocks and round-trip', () => {
+    const { doc } = importMarkdown(md)
+    expect(doc.child(1).type).toBe(S.mermaid_block)
+    expect(doc.child(1).textContent).toBe('flowchart LR\n  A --> B')
+    expect(doc.child(2).attrs.fence).toBe('~')
+    expect(untouched(md)).toBe(md)
+    expect(reserialize(md)).toBe(md)
+  })
+
+  it('the HTML export puts in the drawn SVG; without it the code stays', () => {
+    const mermaid = new Map([['flowchart LR\n  A --> B', '<svg id="d1"></svg>']])
+    const html = renderHtml(md, { mermaid })
+    expect(html).toContain('<div class="mermaid"><svg id="d1"></svg></div>')
+    expect(html).toContain('<code class="language-mermaid">graph TD')
+    expect(renderHtml(md)).not.toContain('<svg')
+  })
+})

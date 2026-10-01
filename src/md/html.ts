@@ -17,6 +17,8 @@ export interface RenderOptions {
   highlight?: HLJSApi
   /** Show `$…$` / `$$…$$` / ```math as formulas (MathML). */
   math?: MathRenderer
+  /** ```mermaid diagrams, already drawn: source → SVG. */
+  mermaid?: Map<string, string>
 }
 
 const text = (el: Element) => el.children.map((c) => (c.type === 'text' ? c.value : '')).join('')
@@ -31,6 +33,11 @@ function rehypeCodeAndMath(opts: RenderOptions) {
         if (child.type !== 'element') return
         const code = child.tagName === 'pre' ? (child.children[0] as Element | undefined) : undefined
         const cls = classes(code)
+        const diagram = code?.tagName === 'code' && cls.includes('language-mermaid') ? opts.mermaid?.get(text(code).replace(/\n$/, '')) : undefined
+        if (diagram) {
+          node.children[i] = raw(`<div class="mermaid">${diagram}</div>`)
+          return
+        }
         if (code?.tagName === 'code' && (cls.includes('math-display') || cls.includes('language-math'))) {
           if (opts.math) node.children[i] = raw(opts.math.render(text(code).replace(/\n$/, ''), true))
           return
@@ -65,7 +72,7 @@ const plain = new Map<boolean, ReturnType<typeof processor>>()
 export function renderHtml(markdown: string, opts?: RenderOptions): string {
   let p = plain.get(extendedSyntaxOn())
   if (!p) plain.set(extendedSyntaxOn(), (p = processor()))
-  return String((opts?.highlight || opts?.math ? processor(opts) : p).processSync(markdown)).trim()
+  return String((opts?.highlight || opts?.math || opts?.mermaid ? processor(opts) : p).processSync(markdown)).trim()
 }
 
 /** Title for a standalone page: first heading, else the file name. */
@@ -137,6 +144,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 .hljs-addition { color: var(--hl-tag); background: var(--hl-add-bg); } .hljs-deletion { color: var(--hl-keyword); background: var(--hl-del-bg); }
 :root { --hl-keyword: #cf222e; --hl-title: #8250df; --hl-constant: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #59636e; --hl-tag: #116329; --hl-bullet: #3b2300; --hl-add-bg: #dafbe1; --hl-del-bg: #ffebe9; }
 @media (prefers-color-scheme: dark) { :root { --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-constant: #79c0ff; --hl-string: #a5d6ff; --hl-builtin: #ffa657; --hl-comment: #9198a1; --hl-tag: #7ee787; --hl-bullet: #f2cc60; --hl-add-bg: #033a16; --hl-del-bg: #67060c; } }
+.markdown-body .mermaid { margin: 0 0 16px; text-align: center; overflow-x: auto; } .markdown-body .mermaid svg { max-width: 100%; height: auto; }
 .markdown-body mark { padding: 0 .1em; background: #fff8c5; color: inherit; }
 .markdown-body dl { padding: 0; } .markdown-body dl dt { margin-top: 16px; font-style: italic; font-weight: 600; } .markdown-body dl dd { margin: 0 0 16px; padding: 0 16px; }
 @media print {

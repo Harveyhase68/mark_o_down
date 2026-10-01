@@ -36,6 +36,13 @@ clean Markdown.
   inline code, code blocks, bullet/numbered/task lists, quotes, links, images, horizontal rules, tables,
   footnotes – plus superscript, subscript and highlight as the HTML tags GitHub renders
   (`<sup>`, `<sub>`, `<mark>`).
+- **Mermaid diagrams** like on GitHub: ` ```mermaid ` blocks are drawn (flowcharts, sequence,
+  class, state, Gantt, pie … diagrams); click a diagram to edit its source below it. Also in the
+  HTML export and print. Mermaid is loaded only when a document has a diagram.
+- **Extended syntax** (Pandoc / Typora / Obsidian, switchable under *Help*, on by default):
+  `^superscript^`, `~subscript~`, `==highlight==` and definition lists (`Term` / `: Definition`).
+  GitHub shows these as plain text; switched off, Mark O Down reads Markdown exactly like GitHub
+  (then `~text~` is strikethrough).
 - **Math** like on GitHub: `$E=mc^2$` inline, `$$ … $$` and ` ```math ` blocks, shown as formulas
   (LaTeX via [Temml](https://temml.org), rendered as MathML – no math fonts to ship). Prices stay
   text: `from $5 to $10` is not a formula (Pandoc's rule). Loaded only when a document has math.
@@ -176,6 +183,30 @@ The test suite round-trips its fixtures and all README files in `node_modules` b
 checks that full re-serialization renders identical HTML.
 
 ## Changelog
+
+### Unreleased
+
+**New**
+
+- **Mermaid diagrams**: ` ```mermaid ` blocks are drawn as diagrams, like on GitHub. Click a diagram
+  to edit its source right below it – the diagram follows while you type; errors are shown under
+  the last good version. *Diagram* in the toolbar inserts an example; ` ```mermaid ` + space starts
+  one. Also in the HTML export and print (as SVG). Mermaid 11 is loaded only when a document has a
+  diagram; the installer grows by about 1 MB.
+- **Extended syntax** (switchable under *Help → Extended syntax*, on by default):
+  `^superscript^`, `~subscript~` (no spaces inside, as in Pandoc), `==highlight==` and definition
+  lists (`Term` followed by `: Definition`). Typing `: ` at the start of a line below a paragraph
+  makes it a definition list; `Enter` in a term jumps to its definition, on an empty last line of
+  a definition starts the next term, in an empty term leaves the list. The toolbar buttons for
+  superscript/subscript/highlight write `^x^` / `~x~` / `==x==` (with spaces inside: the HTML tag).
+  GitHub does not know this syntax and shows it as text – switched off, Mark O Down reads exactly
+  like GitHub again (`~text~` is strikethrough there). Switching re-reads the open document.
+
+**Fixed**
+
+- When edited blocks were saved again: an HTML link closed with `</A>` became `</a>`,
+  `<sup>*x*</sup>` became `*<sup>x</sup>*`, and two adjacent links to the same address
+  (`[a](x)[b](x)`) were merged into one – all now stay as written.
 
 ### 0.5.0 – 2026-09-30
 
