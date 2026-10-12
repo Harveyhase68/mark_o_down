@@ -34,7 +34,9 @@ export function buildInputRules() {
         /^(\d{1,9})([.)])\s$/,
         N.ordered_list,
         (m) => ({ start: +m[1], delim: m[2] }),
-        (m, node) => node.childCount + node.attrs.start === +m[1],
+        // right below a numbered list: continue it, whatever the number – Markdown does the
+        // same (`1. 2. 3. 5.` is one list) and the editor shows the list renumbered anyway
+        (m, node) => node.attrs.delim === m[2],
       ),
       // `$$` or ```math + space: a formula block (GitHub renders both)
       textblockTypeInputRule(/^\$\$\s$/, N.math_block),

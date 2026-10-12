@@ -159,3 +159,23 @@ describe('editing', () => {
     expect(toHtml(out)).toBe('<ul>\n<li>a</li>\n</ul>\n<ul>\n<li>b</li>\n</ul>')
   })
 })
+
+describe('numbered lists with gaps (1. 2. 3. 5.)', () => {
+  const md = '1. eins\n2. zwei\n3. drei\n5. fünf\n'
+  const addItem = (at: number, text: string) => {
+    const { doc, meta } = importMarkdown(md)
+    const list = doc.firstChild!
+    const items: PMNode[] = []
+    list.forEach((it) => items.push(it))
+    items.splice(at, 0, schema.nodes.list_item.create(null, schema.nodes.paragraph.create(null, schema.text(text))))
+    return exportMarkdown(doc.copy(doc.content.replaceChild(0, list.copy(schema.nodes.doc.create(null, items).content))), meta)
+  }
+
+  it('a new last item follows the number before it', () => {
+    expect(addItem(4, 'sechs')).toBe('1. eins\n2. zwei\n3. drei\n5. fünf\n6. sechs\n')
+  })
+
+  it('a new item in the middle too; the items after it keep their numbers', () => {
+    expect(addItem(3, 'vier')).toBe('1. eins\n2. zwei\n3. drei\n4. vier\n5. fünf\n')
+  })
+})

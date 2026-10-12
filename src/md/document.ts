@@ -118,9 +118,9 @@ export function serializeBlock(node: PMNode): string {
 }
 
 /** Serialize one item as it would appear at position `index` of `list`. */
-function serializeListItem(list: PMNode, item: PMNode, index: number): string {
+function serializeListItem(list: PMNode, item: PMNode, index: number, number?: number): string {
   const l = listShell(list)
-  if (l.ordered) l.start = (l.start ?? 1) + (list.attrs.increment ? index : 0)
+  if (l.ordered) l.start = number ?? (l.start ?? 1) + (list.attrs.increment ? index : 0)
   // the result depends on the item and on the list's style + the item's number
   const key = JSON.stringify([list.type.name, l.start, l.spread, l.data])
   let byStyle = itemCache.get(item)
@@ -144,11 +144,22 @@ const adjacent = (prev: PMNode | null, cur: PMNode) =>
 function emitList(list: PMNode, preserve: boolean): string {
   let out = ''
   let prev: PMNode | null = null
+  // numbered lists: a new or edited item follows the number written before it
+  // (`… 5. fünf` + new item → `6.`), unchanged items keep theirs
+  const counting = list.type.name === 'ordered_list' && list.attrs.increment
+  let next: number = list.attrs.start
   list.forEach((item, _, j) => {
     const s = serializeListItem(list, item, j)
     const unchanged = preserve && item.attrs.mdSrc !== null && s === item.attrs.mdCanon
     if (j > 0) out += preserve && adjacent(prev, item) ? item.attrs.mdGap : list.attrs.spread ? '\n\n' : '\n'
-    out += unchanged ? item.attrs.mdSrc : s
+    if (unchanged) {
+      out += item.attrs.mdSrc
+      const written = /^\s*(\d{1,9})/.exec(item.attrs.mdSrc)
+      if (written) next = Number(written[1]) + 1
+    } else {
+      out += counting ? serializeListItem(list, item, j, next) : s
+      next++
+    }
     prev = item
   })
   return out
