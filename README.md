@@ -185,6 +185,22 @@ checks that full re-serialization renders identical HTML.
 
 ### Unreleased
 
+**New**
+
+- **Split editor**: the Markdown source next to the visual editor (`Ctrl+Shift+M`) can now be
+  edited too. Whichever side you type in leads: while source changes are not applied yet the
+  visual editor is dimmed, after a short pause – or as soon as you click elsewhere – they are
+  applied (only the blocks that changed). `Ctrl+Z` works per side.
+- **HTML check** under the source: tags that are not closed, closing tags without an opening one
+  and comments without `-->` (which would hide the rest of the document) are listed with their
+  line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+
+**Fixed**
+
+- Numbered lists with gaps (`1. 2. 3. 5.`): typing a number below the list continues it (it used
+  to start a second list unless the number matched the item count), and a new item gets the
+  number after the one before it.
+
 **Installer (Windows)**
 
 - **"Just for me" is the default** for a new installation (no administrator rights, installed to

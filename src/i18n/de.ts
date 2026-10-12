@@ -31,7 +31,14 @@ export const de = {
   'status.mixedEol': '⚠ gemischte Zeilenenden – werden beim Speichern vereinheitlicht',
   'status.elevated': '⚠ Als Administrator gestartet – Windows blockiert Drag & Drop aus dem Explorer; App ohne Admin-Rechte starten',
   'status.browser': '⚠ Browser-Vorschau – Speichern = Download, kein Drag & Drop; für volle Funktion die App starten',
-  'source.title': 'Markdown (Export-Vorschau, schreibgeschützt)',
+  'source.title': "Markdown-Quelltext – bearbeitbar, der Editor folgt nach einer kurzen Pause",
+  'lint.unclosed': "{tag} wird nicht geschlossen (Zeile {line})",
+  'lint.stray': "{tag} ohne öffnendes Tag (Zeile {line})",
+  'lint.comment': "Kommentar ohne --> (Zeile {line}) – der Rest des Dokuments wäre auskommentiert",
+  'lint.close': "Schließen",
+  'lint.remove': "Entfernen",
+  'lint.goto': "Zur Stelle springen",
+  'lint.more': "… und {n} weitere",
   'toolbar.label': 'Formatierung',
 
   // ------------------------------------------------------------ toolbar

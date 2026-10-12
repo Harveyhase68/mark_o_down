@@ -163,6 +163,53 @@ body.show-source #source-pane {
   font-size: 12px;
 }
 
+/* while source edits are not applied yet, the visual editor is locked (dimmed);
+   a click applies them first */
+body.source-pending #scroller {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+#source-lint {
+  max-height: 30%;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+#source-lint .lint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+}
+
+#source-lint .lint-msg {
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #b35900;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#source-lint .lint-fix {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+#source-lint .lint-more {
+  padding: 2px 10px 6px;
+  color: var(--muted);
+}
+
 #source {
   flex: 1;
   resize: none;

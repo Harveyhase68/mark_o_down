@@ -2,6 +2,7 @@ import './style.css'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView } from 'prosemirror-view'
 import { importMarkdown, exportMarkdown, NEW_DOC_META, type DocMeta } from './md/document'
+import { applyFix, lintHtml } from './md/htmlLint'
 import { documentTitle, renderHtml, renderHtmlPage } from './md/html'
 import { createEditor, editImage, editLink, insertEmoji, type EditorHooks } from './editor/editor'
 import { createToolbar } from './editor/toolbar'
@@ -151,7 +152,11 @@ const zoom = setupZoom(editorEl, $('#scroller'), $('#zoom'))
 // ------------------------------------------------------------------ UI updates
 
 const isDirty = () => doc.saved === null || !view.state.doc.eq(doc.saved)
-const markdown = () => exportMarkdown(view.state.doc, doc.meta)
+/** The document as Markdown (source edits not applied yet are applied first). */
+const markdown = () => {
+  applySource()
+  return exportMarkdown(view.state.doc, doc.meta)
+}
 const docName = () => host.basename(doc.path ?? doc.suggested ?? t('doc.untitled'))
 const withoutExt = (name: string) => name.replace(/\.[^.\\/]+$/, '')
 
@@ -186,7 +191,129 @@ function updateChrome() {
   if (flashMessage) parts.unshift(`✓ ${flashMessage}`)
   statusEl.textContent = parts.join('   ·   ')
 
-  if (sourceVisible) sourceEl.value = markdown()
+  if (sourceVisible && !applyingSource) showSource()
+}
+
+// ------------------------------------------------------------------ source editor (split view)
+//
+// The Markdown source next to the visual editor can be edited too. Whichever side is
+// typed in leads: typing in the source dims (locks) the visual editor; a short pause –
+// or any click/focus outside the source – applies the source to it first. Undo works
+// per side: source edits enter the visual editor outside its undo history.
+
+let sourcePending = false
+let applyingSource = false
+let sourceTimer = 0
+let lintTimer = 0
+
+/** Visual editor → source (keeps the source's cursor and scroll position when possible). */
+function showSource() {
+  const md = exportMarkdown(view.state.doc, doc.meta)
+  if (sourceEl.value === md) return
+  const { selectionStart, selectionEnd, scrollTop } = sourceEl
+  sourceEl.value = md
+  sourceEl.setSelectionRange(Math.min(selectionStart, md.length), Math.min(selectionEnd, md.length))
+  sourceEl.scrollTop = scrollTop
+  scheduleLint()
+}
+
+sourceEl.addEventListener('input', () => {
+  sourcePending = true
+  document.body.classList.add('source-pending')
+  clearTimeout(sourceTimer)
+  sourceTimer = window.setTimeout(applySource, 400)
+})
+
+/** Source → visual editor: only the blocks that differ are replaced. */
+function applySource() {
+  clearTimeout(sourceTimer)
+  if (!sourcePending) return
+  sourcePending = false
+  document.body.classList.remove('source-pending')
+  const { doc: next, meta } = importMarkdown(sourceEl.value)
+  doc.meta = meta
+  const cur = view.state.doc
+  let start = 0
+  while (start < cur.childCount && start < next.childCount && cur.child(start).eq(next.child(start))) start++
+  let endCur = cur.childCount
+  let endNext = next.childCount
+  while (endCur > start && endNext > start && cur.child(endCur - 1).eq(next.child(endNext - 1))) {
+    endCur--
+    endNext--
+  }
+  const pos = (n: PMNode, i: number) => {
+    let p = 0
+    for (let k = 0; k < i; k++) p += n.child(k).nodeSize
+    return p
+  }
+  if (start === endCur && start === endNext) return scheduleLint() // same document (e.g. only the gap after the last block)
+  const replacement: PMNode[] = []
+  for (let k = start; k < endNext; k++) replacement.push(next.child(k))
+  const tr = view.state.tr.replaceWith(pos(cur, start), pos(cur, endCur), replacement)
+  applyingSource = true
+  try {
+    view.dispatch(tr.setMeta('addToHistory', false))
+  } finally {
+    applyingSource = false
+  }
+  scheduleLint()
+}
+
+// leaving the source (click, focus elsewhere, a shortcut): apply it before anything else happens
+document.addEventListener('pointerdown', (e) => sourcePending && !sourceEl.contains(e.target as Node) && applySource(), true)
+document.addEventListener('focusin', (e) => sourcePending && e.target !== sourceEl && applySource(), true)
+
+function scheduleLint() {
+  clearTimeout(lintTimer)
+  lintTimer = window.setTimeout(showLint, 300)
+}
+
+const LINT_MAX = 4
+
+/** Problems with HTML tags in the source, each with its fix. */
+function showLint() {
+  const box = $('#source-lint')
+  const issues = sourceVisible ? lintHtml(sourceEl.value) : []
+  box.hidden = !issues.length
+  box.replaceChildren()
+  for (const issue of issues.slice(0, LINT_MAX)) {
+    const row = document.createElement('div')
+    row.className = 'lint-row'
+    const msg = document.createElement('button')
+    msg.type = 'button'
+    msg.className = 'lint-msg'
+    msg.textContent = `⚠ ${t(issue.kind === 'comment' ? 'lint.comment' : issue.kind === 'stray' ? 'lint.stray' : 'lint.unclosed', { tag: `<${issue.kind === 'stray' ? '/' : ''}${issue.tag.replace(/^<!--$/, '!--')}>`, line: issue.line })}`
+    msg.title = t('lint.goto')
+    msg.onclick = () => {
+      sourceEl.focus()
+      sourceEl.setSelectionRange(issue.offset, issue.offset)
+    }
+    row.append(msg)
+    if (issue.fix) {
+      const fix = document.createElement('button')
+      fix.type = 'button'
+      fix.className = 'lint-fix'
+      fix.textContent = t('remove' in issue.fix ? 'lint.remove' : 'lint.close')
+      fix.onclick = () => {
+        const change = applyFix(sourceEl.value, issue)
+        // through the editing commands, so Ctrl+Z in the source undoes it
+        sourceEl.focus()
+        sourceEl.setSelectionRange(change.from, change.to)
+        if (!document.execCommand('insertText', false, change.insert)) {
+          sourceEl.value = change.text
+          sourceEl.dispatchEvent(new Event('input'))
+        }
+      }
+      row.append(fix)
+    }
+    box.append(row)
+  }
+  if (issues.length > LINT_MAX) {
+    const more = document.createElement('div')
+    more.className = 'lint-more'
+    more.textContent = t('lint.more', { n: issues.length - LINT_MAX })
+    box.append(more)
+  }
 }
 
 /**
@@ -229,6 +356,7 @@ function flash(message: string) {
 }
 
 function toggleSource() {
+  applySource()
   sourceVisible = !sourceVisible
   document.body.classList.toggle('show-source', sourceVisible)
   updateChrome()
