@@ -260,6 +260,37 @@ function applySource() {
   scheduleLint()
 }
 
+// ------------------------------------------------------------------ keeping the cursor
+//
+// A click on the page margin (outside the editable area) puts the cursor at the nearest
+// place. The editor keeps the focus when the window is maximized / restored / activated
+// again (WebView2 may drop it while resizing), unless the user was somewhere else.
+
+editorEl.addEventListener('mousedown', (e) => {
+  if (view.dom.contains(e.target as Node) || e.button !== 0) return
+  e.preventDefault()
+  const box = view.dom.getBoundingClientRect()
+  const left = Math.min(Math.max(e.clientX, box.left + 1), box.right - 1)
+  const top = Math.min(Math.max(e.clientY, box.top + 1), box.bottom - 1)
+  const pos = view.posAtCoords({ left, top })?.pos ?? view.state.doc.content.size
+  view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(pos))))
+  view.focus()
+})
+
+/** Where the keyboard was last: the editor, the source, or somewhere else (find bar, dialog …). */
+let lastFocus: 'editor' | 'source' | 'other' = 'editor'
+document.addEventListener('focusin', (e) => {
+  lastFocus = view.dom.contains(e.target as Node) ? 'editor' : e.target === sourceEl ? 'source' : 'other'
+})
+
+/** Give the editor its focus back if it had it (not over a dialog, not in the source). */
+function refocusEditor() {
+  if (lastFocus !== 'editor' || modalOpen() || view.hasFocus()) return
+  view.focus()
+}
+window.addEventListener('focus', () => requestAnimationFrame(refocusEditor))
+window.addEventListener('resize', () => requestAnimationFrame(refocusEditor))
+
 // leaving the source (click, focus elsewhere, a shortcut): apply it before anything else happens
 document.addEventListener('pointerdown', (e) => sourcePending && !sourceEl.contains(e.target as Node) && applySource(), true)
 document.addEventListener('focusin', (e) => sourcePending && e.target !== sourceEl && applySource(), true)
@@ -818,7 +849,8 @@ void setupWindow(view)
 // reveal the page (and the window, which Tauri creates hidden) once the editor is painted
 requestAnimationFrame(() => {
   document.body.classList.add('ready')
-  if (host.isTauri) void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().show())
+  // the window starts hidden: a hidden window can't take the focus, so give it to the editor once shown
+  if (host.isTauri) void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().show().then(() => getCurrentWindow().setFocus()).then(refocusEditor))
 })
 void (async () => {
   const p = await host.initialFile()

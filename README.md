@@ -201,6 +201,12 @@ checks that full re-serialization renders identical HTML.
 
 **Fixed**
 
+- **Missing cursor** (reported by a user): in an empty or short document only the first line
+  could be clicked – a click anywhere else on the page (e.g. after maximizing the window) left
+  the editor without a cursor. Now the whole page is editable, a click on its margin puts the
+  cursor at the nearest place, the cursor is in the document right after opening (also by
+  double-click; the window was still hidden when it tried), and the editor keeps the focus when
+  the window is maximized, restored or activated again.
 - Numbered lists with gaps (`1. 2. 3. 5.`): typing a number below the list continues it (it used
   to start a second list unless the number matched the item count), and a new item gets the
   number after the one before it.

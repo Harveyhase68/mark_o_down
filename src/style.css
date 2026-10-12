@@ -133,7 +133,11 @@ body.show-source #workspace {
   padding: 32px 16px 80px;
 }
 
+/* the editable area fills the whole page: a click anywhere on it puts the cursor in
+   (an empty document is one short line – the rest of the page must not be dead space) */
 #editor {
+  display: flex;
+  flex-direction: column;
   max-width: 860px;
   min-height: 100%;
   margin: 0 auto;
@@ -278,6 +282,7 @@ body.source-pending #scroller {
 /* ---------------------------------------------------------------- document */
 
 .md-editor {
+  flex: 1;
   outline: none;
   white-space: pre-wrap;
   word-wrap: break-word;
