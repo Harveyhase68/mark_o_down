@@ -281,6 +281,21 @@ export async function isElevated(): Promise<boolean> {
 
 // ------------------------------------------------------------------ export
 
+// ------------------------------------------------------------------ spell checking (src-tauri/src/spell.rs)
+
+export async function spellLanguages(): Promise<string[]> {
+  return isTauri ? invoke<string[]>('spell_languages') : []
+}
+
+/** For each word: spelled correctly? */
+export async function spellCheck(lang: string, words: string[]): Promise<boolean[]> {
+  return isTauri ? invoke<boolean[]>('spell_check', { lang, words }) : words.map(() => true)
+}
+
+export async function spellSuggest(lang: string, word: string): Promise<string[]> {
+  return isTauri ? invoke<string[]>('spell_suggest', { lang, word }) : []
+}
+
 /** "Save as PDF" is made by the web engine itself only on Windows (WebView2). */
 export const pdfDirect = isTauri && /Windows/.test(navigator.userAgent)
 

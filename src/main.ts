@@ -18,6 +18,7 @@ import { setupZoom } from './editor/zoom'
 import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
 import { createGuard, sessionEnabled, setSessionEnabled } from './guard'
+import { languageName, refreshSpell, setSpellEnabled, showLanguageMenu, spellEnabled, spellLanguage } from './editor/spell'
 import { extendedSyntaxOn, setExtendedSyntax } from './md/markdown'
 import { store } from './editor/dom'
 
@@ -144,6 +145,18 @@ function toolbarActions(): Parameters<typeof createToolbar>[2] {
   sourceVisible: () => sourceVisible,
   session: host.isTauri ? { enabled: sessionEnabled, toggle: () => setSessionEnabled(!sessionEnabled()) } : undefined,
   extended: { enabled: extendedSyntaxOn, toggle: () => switchExtendedSyntax(!extendedSyntaxOn()) },
+  spell: {
+    enabled: spellEnabled,
+    toggle: () => {
+      setSpellEnabled(!spellEnabled())
+      refreshSpell(view)
+    },
+    language: () => {
+      const tag = spellLanguage()
+      return tag ? languageName(tag) : t('spell.none')
+    },
+    chooseLanguage: (anchor) => void showLanguageMenu(view, anchor),
+  },
   }
 }
 const findBar = createFindBar($('#workspace'), view)

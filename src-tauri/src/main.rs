@@ -4,6 +4,7 @@ mod cache;
 mod mdfile;
 mod paths;
 mod pdf;
+mod spell;
 mod recovery;
 
 use std::path::{Path, PathBuf};
@@ -191,6 +192,7 @@ fn main() {
     });
     builder
         .manage(PendingFiles::default())
+        .manage(spell::SpellService::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -223,6 +225,9 @@ fn main() {
             cache::config_dir,
             cache::fetch_cached,
             pdf::save_pdf,
+            spell::spell_languages,
+            spell::spell_check,
+            spell::spell_suggest,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

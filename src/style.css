@@ -281,6 +281,13 @@ body.source-pending #scroller {
 
 /* ---------------------------------------------------------------- document */
 
+/* spell checking: misspelled words */
+.md-editor .spell-error {
+  text-decoration: underline wavy #e5484d;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+
 .md-editor {
   flex: 1;
   outline: none;

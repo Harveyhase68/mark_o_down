@@ -61,6 +61,8 @@ clean Markdown.
   recently used, full 4-byte Unicode support.
 - **Images like on GitHub** – relative paths resolve from the document's folder, `/path` from the
   repository root. Drag & drop images and `.md` files into the window.
+- **Spell checking** in the language of the text (chosen separately from the interface language),
+  using the system's dictionaries.
 - **Find & replace** with match case, whole word and regular expressions (`$1` groups).
 - **Safe** – changes by other programs are detected (reload or ask, never overwritten silently),
   unsaved work is recovered after a crash, recently opened files in the Open menu.
@@ -191,6 +193,13 @@ checks that full re-serialization renders identical HTML.
   edited too. Whichever side you type in leads: while source changes are not applied yet the
   visual editor is dimmed, after a short pause – or as soon as you click elsewhere – they are
   applied (only the blocks that changed). `Ctrl+Z` works per side.
+- **Spell checking** with the operating system's own checker (Windows spell checker, macOS
+  spelling, Hunspell dictionaries on Linux): misspelled words are underlined in red; right-click
+  for suggestions, *Add to dictionary* and *Ignore*. The **language of the texts** is chosen under
+  *Help* independently of the interface language (e.g. German menus, English README) and saved;
+  so is switching it off. Code, formulas, diagrams, raw HTML, links, paths, file names, CamelCase
+  and ALLCAPS words are not checked. Languages are those installed in the system – on Linux
+  e.g. the package `hunspell-de-de`.
 - **Save as PDF…** (in the Save menu): the page of the HTML export – code colours, formulas,
   diagrams, images – as an A4 PDF with real, selectable text and working links. On Windows it is
   created directly by the built-in web engine (no print dialog); on macOS and Linux the print

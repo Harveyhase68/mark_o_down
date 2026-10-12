@@ -12,6 +12,13 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 ureq = "3"
 base64 = "0.22"
+# spell checking on Linux (Hunspell dictionaries); pure Rust, also used by the tests
+spellbook = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# spell checking: NSSpellChecker (the versions Tauri already uses)
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
 
 [build-dependencies]
 tauri-build = { version = "2.5.0", features = [] }
@@ -20,4 +27,4 @@ tauri-build = { version = "2.5.0", features = [] }
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
 # "Save as PDF" (WebView2 PrintToPdf) – the versions Tauri's webview (wry) uses
 webview2-com = "0.39"
-windows = "0.62"
+windows = { version = "0.62", features = ["Win32_Globalization", "Win32_System_Com"] }

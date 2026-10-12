@@ -114,6 +114,8 @@ export interface ToolbarActions {
   sourceVisible: () => boolean
   /** "Remember session" (only in the app, not in the browser preview). */
   session?: { enabled: () => boolean; toggle: () => void }
+  /** Spell checking: on/off, the language of the texts (a menu below the help button). */
+  spell: { enabled: () => boolean; toggle: () => void; language: () => string; chooseLanguage: (anchor: HTMLElement) => void }
   /** Extended syntax on/off (the toolbar is rebuilt after a change). */
   extended: { enabled: () => boolean; toggle: () => void }
 }
@@ -224,6 +226,15 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
         title: t('tb.help'),
         menu: () => [
           { label: t('menu.help'), shortcut: 'F1', run: actions.help },
+          'separator',
+          {
+            label: `${actions.spell.enabled() ? '✓' : ' '}  ${t('menu.spell')}`,
+            run: actions.spell.toggle,
+          },
+          {
+            label: `   ${t('menu.spellLanguage', { lang: actions.spell.language() })}`,
+            run: () => actions.spell.chooseLanguage([...el.querySelectorAll<HTMLElement>('button')].at(-1)!),
+          },
           'separator',
           {
             label: `${ext ? '✓' : ' '}  ${t('menu.extended')}`,
