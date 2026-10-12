@@ -70,6 +70,7 @@
     ],
     "windows": {
       "nsis": {
+        "template": "windows/installer.nsi",
         "installerIcon": "icons/icon.ico",
         "installMode": "both",
         "languages": [

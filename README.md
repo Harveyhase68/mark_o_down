@@ -89,8 +89,9 @@ Get the right file from the [latest release](https://github.com/Harveyhase68/mar
 The apps are not code-signed yet:
 
 - **Windows:** *"Windows protected your PC"* → click **More info → Run anyway**. The installer asks
-  whether to install for you only or for all users (`C:\Program Files`, needs administrator rights;
-  unattended: `/S /ALLUSERS`). The app needs Microsoft Edge WebView2, which is part of Windows 10/11
+  whether to install for you only (the default, no administrator rights) or for all users
+  (`C:\Program Files`; unattended: `/S /ALLUSERS`), and which file types (`.md`, `.markdown`,
+  `.mdown`, `.mkd`, `.mkdn`, `.mdwn`) Mark O Down should open – all, none or single ones. The app needs Microsoft Edge WebView2, which is part of Windows 10/11
   (the installer fetches it if missing).
 - **macOS:** the first time, right-click the app → **Open** (or *System Settings → Privacy & Security →
   Open Anyway*). If macOS says the app *"is damaged"*, run
@@ -181,6 +182,20 @@ The test suite round-trips its fixtures and all README files in `node_modules` b
 checks that full re-serialization renders identical HTML.
 
 ## Changelog
+
+### Unreleased
+
+**Installer (Windows)**
+
+- **"Just for me" is the default** for a new installation (no administrator rights, installed to
+  `%LOCALAPPDATA%\Programs`); *for all users* (`C:\Program Files`) is one click away. An update
+  keeps the way it was installed.
+- **Choose the file types**: a new page lists `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn` and
+  `.mdwn` – tick all, none or single ones. The choice is remembered for updates; a type you untick
+  later is given back to the program that had it before.
+- Safer file associations (also when uninstalling): only what is still Mark O Down's is undone –
+  a type another program (e.g. VS Code) has taken over in the meantime is left alone, and
+  unticking one type no longer affects the others.
 
 ### 0.6.0 – 2026-10-01
 
