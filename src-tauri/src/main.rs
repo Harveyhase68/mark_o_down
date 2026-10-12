@@ -3,6 +3,7 @@
 mod cache;
 mod mdfile;
 mod paths;
+mod pdf;
 mod recovery;
 
 use std::path::{Path, PathBuf};
@@ -221,6 +222,7 @@ fn main() {
             cache::config_write,
             cache::config_dir,
             cache::fetch_cached,
+            pdf::save_pdf,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

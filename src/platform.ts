@@ -281,6 +281,19 @@ export async function isElevated(): Promise<boolean> {
 
 // ------------------------------------------------------------------ export
 
+/** "Save as PDF" is made by the web engine itself only on Windows (WebView2). */
+export const pdfDirect = isTauri && /Windows/.test(navigator.userAgent)
+
+export async function pickPdfSavePath(suggested: string): Promise<string | null> {
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  return save({ defaultPath: suggested, filters: [{ name: t('dialog.pdf'), extensions: ['pdf'] }] })
+}
+
+/** Print the page (HTML) to a PDF file, invisibly. */
+export async function savePdf(html: string, path: string): Promise<void> {
+  await invoke('save_pdf', { html, path })
+}
+
 export async function pickHtmlSavePath(suggested: string): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog')
   return save({ defaultPath: suggested, filters: [{ name: t('dialog.html'), extensions: HTML_EXT }] })

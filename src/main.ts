@@ -132,6 +132,7 @@ function toolbarActions(): Parameters<typeof createToolbar>[2] {
   close: () => void closeDocument(),
   print: () => void printDocument(),
   exportHtml: () => void exportHtml(),
+  exportPdf: () => void exportPdf(),
   copyHtml: () => void copyHtml(),
   help: () => void host.openExternal(HELP_URL),
   about: () => void showAbout(),
@@ -623,6 +624,33 @@ async function copyHtml() {
     flash(t('flash.htmlCopied'))
   } catch (e) {
     await host.showError(t('err.copy', { error: String(e) }))
+  }
+}
+
+/**
+ * "Save as PDF": the page of the HTML export, printed to a file by the web engine
+ * (Windows); elsewhere the print dialog, which saves PDFs too.
+ */
+async function exportPdf() {
+  if (!host.pdfDirect) {
+    flash(t('flash.pdfViaPrint'))
+    return printDocument()
+  }
+  const path = await host.pickPdfSavePath(`${withoutExt(doc.path ?? docName())}.pdf`)
+  if (!path) return
+  flash(t('flash.pdfCreating'))
+  try {
+    const md = markdown()
+    const page = new DOMParser().parseFromString(renderHtmlPage(md, htmlTitle(), getLang(), await renderOptions(md)), 'text/html')
+    // relative image paths → URLs the (hidden) window can load
+    for (const img of page.images) {
+      const src = img.getAttribute('src')
+      if (src) img.setAttribute('src', hooks.resolveImage(src))
+    }
+    await host.savePdf(`<!doctype html>\n${page.documentElement.outerHTML}`, path)
+    flash(t('flash.pdfSaved', { path }))
+  } catch (e) {
+    await host.showError(t('err.pdf', { error: String(e) }))
   }
 }
 

@@ -67,7 +67,7 @@ clean Markdown.
 - **Sessions like Notepad++** – closing the app keeps the document as it is, unsaved changes
   included, and the next start continues with it. The file itself is only changed when you save.
 - **Open HTML** – converted to Markdown; a dialog lists exactly what Markdown can't keep.
-- **Export** – standalone HTML file, HTML to the clipboard, print. Document zoom 50–300 %.
+- **Export** – standalone HTML file, PDF, HTML to the clipboard, print. Document zoom 50–300 %.
 - **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document (`images/`)
   and inserts it; a pasted URL becomes a link, an image URL an image.
 - **Five languages** – German, English, French, Spanish and Italian; follows the system language,
@@ -191,6 +191,10 @@ checks that full re-serialization renders identical HTML.
   edited too. Whichever side you type in leads: while source changes are not applied yet the
   visual editor is dimmed, after a short pause – or as soon as you click elsewhere – they are
   applied (only the blocks that changed). `Ctrl+Z` works per side.
+- **Save as PDF…** (in the Save menu): the page of the HTML export – code colours, formulas,
+  diagrams, images – as an A4 PDF with real, selectable text and working links. On Windows it is
+  created directly by the built-in web engine (no print dialog); on macOS and Linux the print
+  dialog opens, which saves PDFs too.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).

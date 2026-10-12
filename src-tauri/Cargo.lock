@@ -2008,6 +2008,8 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "ureq",
+ "webview2-com",
+ "windows 0.62.2",
  "windows-sys 0.59.0",
 ]
 

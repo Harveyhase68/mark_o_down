@@ -102,6 +102,7 @@ export interface ToolbarActions {
   close: () => void
   print: () => void
   exportHtml: () => void
+  exportPdf: () => void
   copyHtml: () => void
   help: () => void
   about: () => void
@@ -147,6 +148,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
           { label: t('common.saveAs'), shortcut: kbd('Ctrl+Shift+S'), run: actions.saveAs },
           'separator',
           { label: t('menu.exportHtml'), shortcut: kbd('Ctrl+Shift+E'), run: actions.exportHtml },
+          { label: t('menu.exportPdf'), run: actions.exportPdf },
           { label: t('menu.copyHtml'), run: actions.copyHtml },
         ],
       },

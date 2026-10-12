@@ -144,6 +144,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 .hljs-addition { color: var(--hl-tag); background: var(--hl-add-bg); } .hljs-deletion { color: var(--hl-keyword); background: var(--hl-del-bg); }
 :root { --hl-keyword: #cf222e; --hl-title: #8250df; --hl-constant: #0550ae; --hl-string: #0a3069; --hl-builtin: #953800; --hl-comment: #59636e; --hl-tag: #116329; --hl-bullet: #3b2300; --hl-add-bg: #dafbe1; --hl-del-bg: #ffebe9; }
 @media (prefers-color-scheme: dark) { :root { --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-constant: #79c0ff; --hl-string: #a5d6ff; --hl-builtin: #ffa657; --hl-comment: #9198a1; --hl-tag: #7ee787; --hl-bullet: #f2cc60; --hl-add-bg: #033a16; --hl-del-bg: #67060c; } }
+.markdown-body math[display="block"] { margin: 0 0 16px; }
 .markdown-body .mermaid { margin: 0 0 16px; text-align: center; overflow-x: auto; } .markdown-body .mermaid svg { max-width: 100%; height: auto; }
 .markdown-body mark { padding: 0 .1em; background: #fff8c5; color: inherit; }
 .markdown-body dl { padding: 0; } .markdown-body dl dt { margin-top: 16px; font-style: italic; font-weight: 600; } .markdown-body dl dd { margin: 0 0 16px; padding: 0 16px; }
