@@ -144,6 +144,8 @@ export const de = {
   'tree.open': "Öffnen",
   'tree.reveal': "Im Explorer zeigen",
   'tree.showInTree': "Im Baum zeigen",
+  'tree.dragTip': "Klicken öffnet – ins Dokument ziehen fügt einen Link ein",
+  'drop.needsSave': "Erst speichern: Der Link wird relativ zum Ort des Dokuments angelegt.",
   'dialog.workspace': "Mark O Down-Workspace",
   'err.workspace': "Der Workspace konnte nicht geöffnet werden:\n{error}",
   'err.workspaceSave': "Der Workspace konnte nicht gespeichert werden:\n{error}",

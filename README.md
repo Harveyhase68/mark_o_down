@@ -40,6 +40,9 @@ clean Markdown.
   path (file or folder, also with quotes from *Copy as path*) goes straight there. Arrow keys,
   `Enter`, type the first letters to jump, double-click a folder to show only it, `Backspace` /
   ↑ for the parent folder, a small drive selector on Windows.
+  **Drag a file from the tree into the document** to link it where you drop it: `[[kapitel1]]`,
+  `[[teil 2/Kapitel 2]]` (relative to the document) – or `[Kapitel 2](teil%202/Kapitel%202.md)`
+  without wiki links.
 - **Workspaces** (`.modw`) for a folder of Markdown documents: *Open → New workspace …* saves
   `<Name>.modw` in the folder (JSON: `version`, `name`, `root` – the documents' folder relative
   to the file, `../` allowed – and `wikiLinks`). Opening one (also by double-click in Explorer)
@@ -227,6 +230,10 @@ checks that full re-serialization renders identical HTML.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+- **Drag a file from the folder tree into the document**: a link to it is inserted where it is
+  dropped (a line shows where) – `[[kapitel1]]`, `[[teil 2/Kapitel 2]]` relative to the document,
+  or a normal Markdown link `[Kapitel 2](teil%202/Kapitel%202.md)` without wiki links. A space is
+  added where the link would stick to a word. The file is neither opened nor copied in.
 - **Workspaces** (`.modw`): a file in the documents' folder with its name, the documents' folder
   (`root`, relative – `../docs` works too), whether `[[wiki links]]` are used (independent of the
   extended syntax) and a `version`. *Open → New workspace …* (or *New workspace here …* in the

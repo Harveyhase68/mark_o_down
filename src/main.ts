@@ -24,6 +24,7 @@ import { extendedSyntaxOn, setExtendedSyntax, setWikiLinks, wikiLinksOn } from '
 import { findByName, isWorkspaceFile, readWorkspace, relativePath, rememberWorkspace, writeWorkspace, WORKSPACE_VERSION, type Workspace } from './workspace'
 import { openWorkspaceWindow, safeFileName, workspaceForm } from './workspaceUi'
 import { WIKI_INDEX_EVENT } from './editor/wikilinks'
+import { createDropCaret, dropPosition, fileLink, insertFileLink } from './editor/filedrop'
 import { store } from './editor/dom'
 import { createFileTree } from './filetree'
 
@@ -134,6 +135,9 @@ if (host.isTauri) fileTree = createFileTree($('#filetree'), $('#tree-resizer'), 
     open: (p) => void openFromTree(p),
     focusEditor: () => view.focus(),
     newWorkspace: (folder) => void newWorkspace(folder),
+    dragOver: (x, y) => fileDragOver(x, y),
+    drop: (path, x, y) => fileDrop(path, x, y),
+    dragEnd: () => dropCaret.hide(),
   })
 let toolbar = createToolbar($('#toolbar'), view, toolbarActions())
 
@@ -341,6 +345,32 @@ async function followLink(href: string, at?: number, wiki = false) {
   history.back.push(from)
   history.forward.length = 0
   if (target.fragment) jumpToAnchor(target.fragment, false)
+}
+
+// a file dragged from the folder tree into the document: a link to it where it is dropped
+const dropCaret = createDropCaret(view)
+
+function fileDragOver(x: number, y: number): boolean {
+  const pos = dropPosition(view, x, y)
+  if (pos === null) {
+    dropCaret.hide()
+    return false
+  }
+  // near the top or bottom edge: scroll
+  const scroller = $('#scroller')
+  const box = scroller.getBoundingClientRect()
+  if (y < box.top + 40) scroller.scrollTop -= 16
+  else if (y > box.bottom - 40) scroller.scrollTop += 16
+  dropCaret.show(pos)
+  return true
+}
+
+function fileDrop(path: string, x: number, y: number) {
+  const pos = dropPosition(view, x, y)
+  if (pos === null) return
+  const link = fileLink(path, doc.path, !!workspace)
+  if (!link) return flash(t('drop.needsSave'), true)
+  insertFileLink(view, pos, link)
 }
 
 /** A file clicked in the folder tree (Alt+← comes back, like after a link). */

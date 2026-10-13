@@ -16,6 +16,12 @@ export interface FileTreeHooks {
   focusEditor: () => void
   /** "New workspace here …" (the folder shown) */
   newWorkspace?: (folder: string) => void
+  /** a file dragged over the window: true if it can be dropped there (as a link) */
+  dragOver?: (x: number, y: number) => boolean
+  /** … dropped there */
+  drop?: (path: string, x: number, y: number) => void
+  /** … the drag ended (dropped or cancelled) */
+  dragEnd?: () => void
 }
 
 interface Settings {
@@ -298,7 +304,7 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
       else name.textContent = r.name
       row.append(twisty, icon, name)
       if (r.where) row.append(el('span', { class: 'ft-where' }, r.where))
-      row.title = r.path
+      row.title = r.dir ? r.path : `${r.path}\n${t('tree.dragTip')}`
       frag.append(row)
     })
     if (!rows.length || note) {
@@ -522,9 +528,48 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
     const row = (e.target as HTMLElement).closest<HTMLElement>('.ft-row')
     return row ? { el: row, row: rows[+row.dataset.i!] } : null
   }
+  // dragging a file into the document makes a link to it. With the pointer, not HTML5
+  // drag & drop: the window's native drop handling (files from Explorer) takes that.
+  let drag: { path: string; x: number; y: number; id: number; ghost: HTMLElement | null; droppable: boolean } | null = null
+  /** a drag just ended: the click that follows is not a click */
+  let dragged = false
+  list.addEventListener('pointerdown', (e) => {
+    const hit = rowAt(e)
+    if (e.button !== 0 || !hit?.row.path || hit.row.dir || !hooks.drop) return
+    drag = { path: hit.row.path, x: e.clientX, y: e.clientY, id: e.pointerId, ghost: null, droppable: false }
+  })
+  list.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return
+    if (!drag.ghost) {
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return
+      list.setPointerCapture(e.pointerId)
+      drag.ghost = el('div', { class: 'ft-ghost' }, host.basename(drag.path))
+      document.body.append(drag.ghost)
+      document.body.classList.add('ft-dragging')
+    }
+    drag.ghost.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 10}px)`
+    drag.droppable = hooks.dragOver?.(e.clientX, e.clientY) ?? false
+    drag.ghost.classList.toggle('no-drop', !drag.droppable)
+  })
+  const endDrag = (e: PointerEvent | null, drop: boolean) => {
+    const d = drag
+    drag = null
+    if (!d?.ghost) return
+    dragged = true
+    setTimeout(() => (dragged = false))
+    d.ghost.remove()
+    document.body.classList.remove('ft-dragging')
+    if (list.hasPointerCapture(d.id)) list.releasePointerCapture(d.id)
+    if (drop && e && hooks.dragOver?.(e.clientX, e.clientY)) hooks.drop!(d.path, e.clientX, e.clientY)
+    hooks.dragEnd?.()
+  }
+  list.addEventListener('pointerup', (e) => endDrag(e, true))
+  list.addEventListener('pointercancel', () => endDrag(null, false))
+  window.addEventListener('keydown', (e) => drag?.ghost && e.key === 'Escape' && (e.preventDefault(), e.stopPropagation(), endDrag(null, false)), true)
+
   list.addEventListener('click', (e) => {
     const hit = rowAt(e)
-    if (!hit?.row.path) return
+    if (dragged || !hit?.row.path) return
     // double-click on a folder: show its contents as the tree (Explorer-like); ↑ goes back.
     // (counted here: the first click redraws the rows, so there is no dblclick event)
     if (e.detail === 2 && hit.row.dir && !results) return void setRoot(hit.row.path)

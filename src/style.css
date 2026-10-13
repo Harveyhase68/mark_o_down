@@ -2339,3 +2339,40 @@ body.tree-right #tree-resizer {
   font-size: 12px;
   word-break: break-all;
 }
+
+/* ---------------------------------------------------------------- dragging a file into the document */
+
+body.ft-dragging,
+body.ft-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.ft-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  padding: 3px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.18);
+  color: var(--text);
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ft-ghost.no-drop {
+  border-color: var(--border);
+  opacity: 0.6;
+}
+
+.drop-caret {
+  position: fixed;
+  z-index: 39;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}

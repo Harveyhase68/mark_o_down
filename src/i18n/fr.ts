@@ -138,6 +138,8 @@ export const fr: Messages = {
   'tree.open': "Ouvrir",
   'tree.reveal': "Afficher dans le gestionnaire de fichiers",
   'tree.showInTree': "Afficher dans l’arborescence",
+  'tree.dragTip': "Cliquer pour ouvrir – glisser dans le document insère un lien",
+  'drop.needsSave': "Enregistrez d’abord : le lien est relatif à l’emplacement du document.",
   'dialog.workspace': "Espace de travail Mark O Down",
   'err.workspace': "Impossible d’ouvrir l’espace de travail :\n{error}",
   'err.workspaceSave': "Impossible d’enregistrer l’espace de travail :\n{error}",

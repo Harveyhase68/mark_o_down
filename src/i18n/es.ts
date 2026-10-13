@@ -138,6 +138,8 @@ export const es: Messages = {
   'tree.open': "Abrir",
   'tree.reveal': "Mostrar en el explorador de archivos",
   'tree.showInTree': "Mostrar en el árbol",
+  'tree.dragTip': "Clic para abrir; arrastrar al documento inserta un enlace",
+  'drop.needsSave': "Guarda primero: el enlace se crea relativo a la ubicación del documento.",
   'dialog.workspace': "Espacio de trabajo de Mark O Down",
   'err.workspace': "No se pudo abrir el espacio de trabajo:\n{error}",
   'err.workspaceSave': "No se pudo guardar el espacio de trabajo:\n{error}",
