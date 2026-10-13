@@ -218,6 +218,14 @@ checks that full re-serialization renders identical HTML.
 
 ### Unreleased
 
+**New**
+
+- **Save workspace as PDF…** (in the Save menu, with a workspace open): all its documents in one
+  PDF – the current one first (e.g. the story with its `[[toc]]`), then the others in the order
+  of the table of contents, each on a new page. Links between the documents, `[[wiki links]]`
+  and the entries of the table of contents jump to the right page inside the PDF; images come
+  from each document's own folder. On macOS and Linux it goes through the print dialog.
+
 **Fixed**
 
 - **F5 / Ctrl+R no longer reload the window** (all tabs and unsaved changes in memory were

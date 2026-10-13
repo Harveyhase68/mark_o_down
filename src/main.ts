@@ -3,15 +3,15 @@ import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView } from 'prosemirror-view'
 import { importMarkdown, exportMarkdown, NEW_DOC_META, type DocMeta } from './md/document'
 import { applyFix, lintHtml } from './md/htmlLint'
-import { findAnchor, parseLinkTarget } from './md/anchors'
-import { documentTitle, renderHtml, renderHtmlPage } from './md/html'
+import { findAnchor, parseLinkTarget, slugify } from './md/anchors'
+import { documentTitle, htmlPage, renderHtml, renderHtmlPage } from './md/html'
 import { createEditor, editImage, editLink, insertEmoji, type EditorHooks } from './editor/editor'
 import { createToolbar } from './editor/toolbar'
 import { askChoice, askSaveChanges, openMenu, type MenuItem } from './editor/dialog'
 import { addRecent, clearRecent, recentFiles, removeRecent, shortDir } from './recent'
 import { htmlToMarkdown } from './md/htmlImport'
 import { HELP_URL, showAbout } from './editor/about'
-import { printMarkdown } from './editor/print'
+import { printMarkdown, printPage } from './editor/print'
 import { createFindBar } from './editor/findbar'
 import { modalOpen } from './editor/modal'
 import { renderOptions } from './md/renderOptions'
@@ -26,7 +26,7 @@ import { openWorkspaceWindow, safeFileName, workspaceForm } from './workspaceUi'
 import { WIKI_INDEX_EVENT } from './editor/wikilinks'
 import { createDropCaret, dropPosition, fileLink, insertFileLink } from './editor/filedrop'
 import { configureToc, refreshTocs } from './editor/toc'
-import { headingsOf, nestHeadings, tocHtml, workspaceToc, type TocDocument, type TocItem } from './md/toc'
+import { headingsOf, nestHeadings, tocHtml, workspaceOrder, workspaceToc, type TocDocument, type TocItem } from './md/toc'
 import { store } from './editor/dom'
 import { createFileTree } from './filetree'
 
@@ -144,6 +144,7 @@ function toolbarActions(): Parameters<typeof createToolbar>[2] {
   print: () => void printDocument(),
   exportHtml: () => void exportHtml(),
   exportPdf: () => void exportPdf(),
+  exportWorkspacePdf: { enabled: () => !!workspace, run: () => void exportWorkspacePdf() },
   copyHtml: () => void copyHtml(),
   help: () => void host.openExternal(HELP_URL),
   about: () => void showAbout(),
@@ -1151,20 +1152,24 @@ function showWorkspaces() {
 /** the workspace's files as last read (cleared when the window is activated again) */
 const tocTexts = new Map<string, string>()
 
+/** A workspace file's Markdown: an open tab's as it is shown (also unsaved), else from disk. */
+async function workspaceText(abs: string): Promise<string> {
+  const open = tabs.find((x) => samePath(x.doc.path, abs))
+  if (open) return open === active ? markdown() : exportMarkdown(tabState(open).doc, open.doc.meta)
+  let text = tocTexts.get(abs)
+  if (text === undefined) {
+    text = await host.readFile(abs).then((f) => f.text, () => '')
+    tocTexts.set(abs, text)
+  }
+  return text
+}
+
 async function tocDocuments(): Promise<TocDocument[]> {
   const ws = workspace!
   const docs = await Promise.all(
     wikiIndex.map(async (rel): Promise<TocDocument | null> => {
       const abs = host.joinPath(ws.root, rel)
-      if (samePath(abs, doc.path)) return null
-      const open = tabs.find((x) => samePath(x.doc.path, abs))
-      if (open) return { path: rel, markdown: exportMarkdown(tabState(open).doc, open.doc.meta) }
-      let text = tocTexts.get(abs)
-      if (text === undefined) {
-        text = await host.readFile(abs).then((f) => f.text, () => '')
-        tocTexts.set(abs, text)
-      }
-      return { path: rel, markdown: text }
+      return samePath(abs, doc.path) ? null : { path: rel, markdown: await workspaceText(abs) }
     }),
   )
   return docs.filter((d): d is TocDocument => d !== null)
@@ -1250,6 +1255,86 @@ async function exportPdf() {
   } catch (e) {
     await host.showError(t('err.pdf', { error: String(e) }))
   }
+}
+
+/**
+ * "Save workspace as PDF": the document in front first (when it belongs to the workspace),
+ * then all other documents of the workspace in the order of its table of contents – one
+ * PDF, every document on a new page. Links between them, [[wiki links]] and the entries of
+ * a [[toc]] lead to the right page; images resolve from each document's own folder.
+ */
+async function exportWorkspacePdf() {
+  const ws = workspace
+  if (!ws) return
+  let path: string | null = null
+  if (host.pdfDirect) {
+    path = await host.pickPdfSavePath(host.joinPath(ws.root, `${safeFileName(ws.data.name) || 'Workspace'}.pdf`))
+    if (!path) return
+  }
+  flash(t('flash.pdfCreating'))
+  try {
+    const page = await workspacePage(ws)
+    if (!path) {
+      flash(t('flash.pdfViaPrint')) // macOS / Linux: the print dialog saves PDFs
+      return void (await printPage(page))
+    }
+    await host.savePdf(page, path)
+    flash(t('flash.pdfSaved', { path }))
+  } catch (e) {
+    await host.showError(t('err.pdf', { error: String(e) }))
+  }
+}
+
+/** All documents of the workspace as one HTML page (see exportWorkspacePdf). */
+async function workspacePage(ws: Workspace): Promise<string> {
+  await refreshWikiIndex(true) // files added or removed meanwhile
+  const all = workspaceOrder(
+    await Promise.all(
+      wikiIndex.map(async (rel) => {
+        const abs = host.joinPath(ws.root, rel)
+        return { path: rel, abs, markdown: await workspaceText(abs) }
+      }),
+    ),
+  )
+  const front = all.find((d) => samePath(d.abs, doc.path))
+  const docs = front ? [front, ...all.filter((d) => d !== front)] : all
+  const indexOf = (abs: string) => docs.findIndex((d) => samePath(d.abs, abs))
+  const anchor = (i: number, slug: string | null) => (slug ? `#d${i}-${slug}` : `#d${i}`)
+  const opts = await renderOptions(docs.map((d) => d.markdown).join('\n\n'))
+
+  const sections = docs.map((d, i) => {
+    // a link to another document of the page → to its page (and heading)
+    const resolve = (href: string, wiki: boolean) => {
+      const target = parseLinkTarget(href)
+      if (target?.kind !== 'file') return null
+      let j = indexOf(host.isFileSystemAbsolute(target.path) ? target.path : host.joinPath(host.dirname(d.abs), target.path))
+      const byName = j < 0 && wiki ? findByName(wikiIndex, target.path) : null
+      if (byName) j = indexOf(host.joinPath(ws.root, byName))
+      if (j < 0) return null
+      let fragment = target.fragment
+      try {
+        fragment = fragment && decodeURIComponent(fragment)
+      } catch {
+        // as written
+      }
+      return anchor(j, fragment ? slugify(fragment) : null)
+    }
+    // its [[toc]]: the other documents, as pages of this PDF
+    const others = docs.filter((x) => x !== d)
+    const toc = (depth: number) => tocHtml(workspaceToc(others, depth, (rel, slug) => anchor(docs.findIndex((x) => x.path === rel), slug)), t('toc.title'))
+    return `<section class="bundle-doc" id="d${i}">\n${renderHtml(d.markdown, { ...opts, toc, links: { prefix: `d${i}-`, resolve } })}\n</section>`
+  })
+
+  // images: relative to each document's own folder (`/…`: its repository root, if it is open)
+  const page = new DOMParser().parseFromString(htmlPage(sections.join('\n'), ws.data.name, getLang(), opts), 'text/html')
+  for (const img of page.images) {
+    const src = img.getAttribute('src')
+    const d = docs[+(img.closest('section.bundle-doc')?.id.slice(1) ?? -1)]
+    if (!src || !d) continue
+    const root = tabs.find((x) => samePath(x.doc.path, d.abs))?.doc.root ?? ws.root
+    img.setAttribute('src', host.resolveImage(src, d.abs, root))
+  }
+  return `<!doctype html>\n${page.documentElement.outerHTML}`
 }
 
 function printDocument() {
@@ -1466,4 +1551,4 @@ void (async () => {
 })()
 
 // Dev hook for testing in the browser console / pane.
-if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), tabs: () => tabs, workspace: () => workspace, wikiIndex: () => wikiIndex, exportToc } })
+if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), tabs: () => tabs, workspace: () => workspace, wikiIndex: () => wikiIndex, exportToc, workspacePdf: async (path: string) => host.savePdf(await workspacePage(workspace!), path) } })

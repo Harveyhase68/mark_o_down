@@ -92,6 +92,8 @@ export const de = {
   'menu.recentClear': 'Liste leeren',
   'menu.exportHtml': 'Als HTML exportieren…',
   'menu.exportPdf': "Als PDF speichern…",
+  'menu.exportWorkspacePdf': "Workspace als PDF speichern…",
+  'menu.exportWorkspacePdfTip': "Alle Dokumente des Workspace in einem PDF: das aktuelle zuerst, dann die übrigen in der Reihenfolge des Inhaltsverzeichnisses, jedes auf einer neuen Seite. Links zwischen den Dokumenten springen im PDF zur richtigen Seite. (Nur mit geöffnetem Workspace.)",
   'menu.copyHtml': 'HTML in die Zwischenablage kopieren',
   'menu.help': 'Hilfe…',
   'menu.about': 'Über Mark O Down',

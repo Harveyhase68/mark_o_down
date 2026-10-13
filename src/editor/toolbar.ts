@@ -104,6 +104,8 @@ export interface ToolbarActions {
   print: () => void
   exportHtml: () => void
   exportPdf: () => void
+  /** all documents of the open workspace in one PDF */
+  exportWorkspacePdf: { enabled: () => boolean; run: () => void }
   copyHtml: () => void
   help: () => void
   about: () => void
@@ -155,6 +157,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
           'separator',
           { label: t('menu.exportHtml'), shortcut: kbd('Ctrl+Shift+E'), run: actions.exportHtml },
           { label: t('menu.exportPdf'), run: actions.exportPdf },
+          { label: t('menu.exportWorkspacePdf'), title: t('menu.exportWorkspacePdfTip'), disabled: !actions.exportWorkspacePdf.enabled(), run: actions.exportWorkspacePdf.run },
           { label: t('menu.copyHtml'), run: actions.copyHtml },
         ],
       },

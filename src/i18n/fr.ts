@@ -87,6 +87,8 @@ export const fr: Messages = {
   'menu.recentClear': 'Vider la liste',
   'menu.exportHtml': 'Exporter en HTML…',
   'menu.exportPdf': "Enregistrer en PDF…",
+  'menu.exportWorkspacePdf': "Enregistrer l’espace de travail en PDF…",
+  'menu.exportWorkspacePdfTip': "Tous les documents de l’espace de travail dans un seul PDF : le document actuel d’abord, puis les autres dans l’ordre de la table des matières, chacun sur une nouvelle page. Les liens entre documents mènent à la bonne page du PDF. (Seulement avec un espace de travail ouvert.)",
   'menu.copyHtml': 'Copier le HTML dans le presse-papiers',
   'menu.help': 'Aide…',
   'menu.about': 'À propos de Mark O Down',

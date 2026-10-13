@@ -87,6 +87,8 @@ export const en: Messages = {
   'menu.recentClear': 'Clear list',
   'menu.exportHtml': 'Export as HTML…',
   'menu.exportPdf': "Save as PDF…",
+  'menu.exportWorkspacePdf': "Save workspace as PDF…",
+  'menu.exportWorkspacePdfTip': "All documents of the workspace in one PDF: the current one first, then the others in the order of the table of contents, each on a new page. Links between the documents go to the right page in the PDF. (Only with a workspace open.)",
   'menu.copyHtml': 'Copy HTML to clipboard',
   'menu.help': 'Help…',
   'menu.about': 'About Mark O Down',

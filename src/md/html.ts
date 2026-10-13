@@ -24,6 +24,33 @@ export interface RenderOptions {
   mermaid?: Map<string, string>
   /** [[toc]]: the table of contents as HTML (a workspace's); default: the document's own headings */
   toc?: (depth: number) => string
+  /**
+   * Several documents in one page (the workspace PDF): every id gets `prefix`, `#anchor` links
+   * too, and `resolve` turns a link to another document of the page into an in-page link
+   * (null: left as it is). `wiki`: a [[wiki link]].
+   */
+  links?: { prefix: string; resolve: (href: string, wiki: boolean) => string | null }
+}
+
+/** ids and links of one document among several in a page (see RenderOptions.links). */
+function rehypeLinks(opts: RenderOptions) {
+  return (tree: HRoot) => {
+    const links = opts.links
+    if (!links) return
+    const visit = (node: HRoot | Element) => {
+      for (const child of node.children) {
+        if (child.type !== 'element') continue
+        const p = child.properties
+        if (typeof p.id === 'string') p.id = links.prefix + p.id
+        if (child.tagName === 'a' && typeof p.href === 'string') {
+          if (p.href.startsWith('#')) p.href = `#${links.prefix}${p.href.slice(1)}`
+          else p.href = links.resolve(p.href, classes(child).includes('wikilink')) ?? p.href
+        }
+        visit(child)
+      }
+    }
+    visit(tree)
+  }
 }
 
 /** [[toc]] alone in a paragraph → the generated table of contents (raw HTML). */
@@ -111,6 +138,7 @@ const processor = (opts: RenderOptions = {}) =>
     .use(remarkToc, opts)
     .use(remarkRehype, { allowDangerousHtml: true, handlers: defListHastHandlers as never })
     .use(rehypeHeadingIds)
+    .use(rehypeLinks, opts)
     .use(rehypeCodeAndMath, opts)
     .use(rehypeStringify, { allowDangerousHtml: true })
 const plain = new Map<string, ReturnType<typeof processor>>()
@@ -119,7 +147,7 @@ const plain = new Map<string, ReturnType<typeof processor>>()
 export function renderHtml(markdown: string, opts?: RenderOptions): string {
   let p = plain.get(dialectKey())
   if (!p) plain.set(dialectKey(), (p = processor()))
-  return String((opts?.highlight || opts?.math || opts?.mermaid || opts?.toc ? processor(opts) : p).processSync(markdown)).trim()
+  return String((opts?.highlight || opts?.math || opts?.mermaid || opts?.toc || opts?.links ? processor(opts) : p).processSync(markdown)).trim()
 }
 
 /** Title for a standalone page: first heading, else the file name. */
@@ -133,6 +161,11 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
 /** Complete HTML page with an embedded GitHub-like stylesheet (no external files). */
 export function renderHtmlPage(markdown: string, title: string, lang = 'de', opts: RenderOptions = {}): string {
+  return htmlPage(renderHtml(markdown, opts), title, lang, opts)
+}
+
+/** A complete page around rendered HTML (`opts.math`: its stylesheet). */
+export function htmlPage(body: string, title: string, lang = 'de', opts: RenderOptions = {}): string {
   return `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -146,7 +179,7 @@ ${PAGE_CSS}${opts.math ? `\n${opts.math.css}` : ''}
 </head>
 <body>
 <article class="markdown-body">
-${renderHtml(markdown, opts)}
+${body}
 </article>
 </body>
 </html>
@@ -168,6 +201,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 .markdown-body img { max-width: 100%; vertical-align: middle; box-sizing: content-box; }
 .markdown-body hr { height: .25em; margin: 24px 0; padding: 0; border: 0; background: var(--border); }
 .markdown-body blockquote { padding: 0 1em; color: var(--muted); border-left: .25em solid var(--border); }
+.markdown-body > section.bundle-doc + section.bundle-doc { break-before: page; }
 .markdown-body nav.toc { margin: 0 0 16px; padding: 8px 16px; background: var(--soft); border-radius: 6px; }
 .markdown-body nav.toc ul { margin: 0; padding-left: 1.4em; list-style: none; }
 .markdown-body nav.toc > ul { padding-left: 0; }

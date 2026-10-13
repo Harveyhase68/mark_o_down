@@ -156,6 +156,23 @@ export function workspaceToc(docs: TocDocument[], depth: number, href: (path: st
   return build(top)
 }
 
+/** The documents in the order of the table of contents (folder by folder, README/index first, natural order). */
+export function workspaceOrder<T extends { path: string }>(docs: T[]): T[] {
+  const name = (p: string) => p.slice(p.lastIndexOf('/') + 1)
+  const dir = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '')
+  const out: T[] = []
+  const walk = (folder: string) => {
+    const here = docs.filter((d) => dir(d.path) === folder)
+    here.sort((a, b) => Number(FRONT.test(name(b.path))) - Number(FRONT.test(name(a.path))) || collator.compare(name(a.path), name(b.path)))
+    out.push(...here)
+    const prefix = folder ? folder + '/' : ''
+    const subs = new Set(docs.filter((d) => d.path.startsWith(prefix) && dir(d.path) !== folder).map((d) => prefix + d.path.slice(prefix.length).split('/')[0]))
+    for (const sub of [...subs].sort((a, b) => collator.compare(name(a), name(b)))) walk(sub)
+  }
+  walk('')
+  return out
+}
+
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /** The table of contents as HTML (for the export and the editor). */

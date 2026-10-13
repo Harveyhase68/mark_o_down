@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { headingsOf, nestHeadings, parseTocMarker, plainText, workspaceToc, type TocItem } from '../src/md/toc'
+import { headingsOf, nestHeadings, parseTocMarker, plainText, workspaceOrder, workspaceToc, type TocItem } from '../src/md/toc'
 import { importMarkdown, exportMarkdown } from '../src/md/document'
 import { setExtendedSyntax, setWikiLinks } from '../src/md/markdown'
 import { renderHtml } from '../src/md/html'
@@ -88,5 +88,24 @@ describe('HTML export', () => {
     expect(html).toContain('<a href="#b">B</a>')
     expect(html).not.toContain('#c')
     expect(renderHtml('[[toc]]\n', { toc: (d) => `<nav>ws ${d}</nav>` })).toBe('<nav>ws 3</nav>')
+  })
+})
+
+describe('several documents in one page (workspace PDF)', () => {
+  it('the order of the table of contents', () => {
+    const paths = ['teil 2/Kapitel 10.md', 'teil 2/a/x.md', 'teil 2/Kapitel 2.md', 'kapitel1.md', 'README.md', 'anhang.md']
+    expect(workspaceOrder(paths.map((path) => ({ path }))).map((d) => d.path)).toEqual(['README.md', 'anhang.md', 'kapitel1.md', 'teil 2/Kapitel 2.md', 'teil 2/Kapitel 10.md', 'teil 2/a/x.md'])
+  })
+
+  it('ids get the document prefix, links to other documents become in-page links', () => {
+    const resolve = (href: string) => (href.startsWith('kapitel1.md') ? `#d1-${href.split('#')[1]}` : null)
+    const md = '# Start\n\n[oben](#start) [K](kapitel1.md#anfang) [[kapitel1#anfang]] [fremd](http://x.y) [weg](fehlt.md)\n'
+    const html = renderHtml(md, { links: { prefix: 'd0-', resolve } })
+    expect(html).toContain('<h1 id="d0-start">')
+    expect(html).toContain('<a href="#d0-start">oben</a>')
+    expect(html).toContain('<a href="#d1-anfang">K</a>')
+    expect(html).toContain('<a href="#d1-anfang" class="wikilink">')
+    expect(html).toContain('<a href="http://x.y">fremd</a>')
+    expect(html).toContain('<a href="fehlt.md">weg</a>')
   })
 })
