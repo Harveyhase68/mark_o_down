@@ -194,6 +194,10 @@ export interface Editor {
   view: EditorView
   /** Replace the document; resets undo history. */
   load: (doc: PMNode) => void
+  /** A fresh editor state for a document (a new tab). */
+  createState: (doc: PMNode) => EditorState
+  /** Show another state (switching tabs: its undo history and selection come along). */
+  setState: (state: EditorState) => void
   /** Redraw images and raw elements (document moved to another folder, language switched). */
   redrawNodeViews: () => void
 }
@@ -294,6 +298,11 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
     view,
     load(doc) {
       view.updateState(stateFor(doc))
+      hooks.onChange(view)
+    },
+    createState: stateFor,
+    setState(state) {
+      view.updateState(state)
       hooks.onChange(view)
     },
     redrawNodeViews() {

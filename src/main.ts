@@ -7,7 +7,7 @@ import { findAnchor, parseLinkTarget } from './md/anchors'
 import { documentTitle, renderHtml, renderHtmlPage } from './md/html'
 import { createEditor, editImage, editLink, insertEmoji, type EditorHooks } from './editor/editor'
 import { createToolbar } from './editor/toolbar'
-import { askChoice, askSaveChanges, type MenuItem } from './editor/dialog'
+import { askChoice, askSaveChanges, openMenu, type MenuItem } from './editor/dialog'
 import { addRecent, clearRecent, recentFiles, removeRecent, shortDir } from './recent'
 import { htmlToMarkdown } from './md/htmlImport'
 import { HELP_URL, showAbout } from './editor/about'
@@ -31,7 +31,8 @@ import { createFileTree } from './filetree'
 // the Markdown dialect: extended syntax (Pandoc/Obsidian) on by default
 const EXTENDED_KEY = 'mod-extended'
 setExtendedSyntax(store.get<boolean>(EXTENDED_KEY, true))
-import { Selection, TextSelection } from 'prosemirror-state'
+import { Selection, TextSelection, type EditorState } from 'prosemirror-state'
+import { createTabBar, type TabInfo } from './tabs'
 import { getLang, kbd, onLangChange, t, type MessageKey } from './i18n'
 
 // ------------------------------------------------------------------ state
@@ -68,6 +69,7 @@ const editorEl = $('#editor')
 const sourceEl = $<HTMLTextAreaElement>('#source')
 const statusEl = $('#status')
 
+/** The document in front (= active.doc). */
 let doc!: DocState
 let sourceVisible = false
 let elevatedWarning = false
@@ -101,26 +103,14 @@ let busy = false
 const guard = createGuard({
   doc: () => doc,
   isDirty: () => isDirty(),
-  markdown: () => markdown(),
+  anyDirty: () => tabs.some(tabDirty),
+  tabs: () => ({ tabs: tabs.map(tabRecovery), active: tabs.indexOf(active) }),
   reload: () => reloadFromDisk(),
-  restore: async (data) => {
-    // reading the file also allows its images and finds the repository root for `/…` paths
-    const file = data.path ? await host.readFile(data.path).catch(() => null) : null
-    if (data.markdown === null) {
-      // a session without unsaved changes: just reopen the file (if it still exists)
-      if (!file) return false
-      setDocument(file.text, file)
-      void rememberRecent(file.path)
-    } else {
-      setDocument(data.markdown, { path: data.path, eol: data.eol, bom: data.bom, hash: data.diskHash, root: file?.root })
-      doc.saved = null // restored changes are unsaved
-    }
-    restorePosition(data.cursor, data.scroll)
-    updateChrome()
-    return true
+  restore: (data) => restoreTab(data),
+  activate: (id) => {
+    const tab = tabs.find((x) => x.id === id)
+    if (tab) activate(tab)
   },
-  confirmDiscard: () => confirmDiscard(),
-  position: () => ({ cursor: view.state.selection.head, scroll: $('#scroller').scrollTop }),
   busy: () => busy,
   flash: (m) => flash(m),
   markChanged: () => {
@@ -207,6 +197,7 @@ let lastTitle = ''
 function updateChrome() {
   const title = `${isDirty() ? '● ' : ''}${docName()}${workspace ? ` — ${workspace.data.name}` : ''} — Mark O Down`
   void fileTree?.setCurrent(doc.path)
+  tabBar.render(tabInfos())
   if (title !== lastTitle) void host.setWindowTitle((lastTitle = title))
 
   const text = view.state.doc.textContent
@@ -339,8 +330,7 @@ async function followLink(href: string, at?: number, wiki = false) {
     return flash(t('link.revealed', { name: host.basename(path) }))
   }
   const from = here(at)
-  if (!(await confirmDiscard())) return
-  await openPath(path)
+  await openPath(path) // in its own tab
   if (!samePath(doc.path, path)) return // could not be opened (the error was shown)
   history.back.push(from)
   history.forward.length = 0
@@ -377,7 +367,6 @@ function fileDrop(path: string, x: number, y: number) {
 async function openFromTree(path: string) {
   if (samePath(path, doc.path)) return view.focus()
   const from = here()
-  if (!(await confirmDiscard())) return
   await openPath(path)
   if (!samePath(doc.path, path)) return
   history.back.push(from)
@@ -412,8 +401,7 @@ async function travel(direction: 'back' | 'forward') {
   if (!place) return
   const current = here()
   if (place.path && !samePath(place.path, doc.path)) {
-    if (!(await confirmDiscard())) return void from.push(place)
-    await openPath(place.path)
+    await openPath(place.path) // its tab, or a new one
     if (!samePath(doc.path, place.path)) return // gone meanwhile
   }
   to.push(current)
@@ -534,7 +522,17 @@ function reparse(change: () => void) {
   const dirty = isDirty()
   const cursor = view.state.selection.head
   const scroll = $('#scroller').scrollTop
+  // the tabs in the background too (their undo history starts anew as well)
+  const others = tabs.filter((x) => x !== active).map((tab) => ({ tab, md: exportMarkdown(tab.state!.doc, tab.doc.meta), dirty: tabDirty(tab) }))
   change()
+  for (const { tab, md, dirty } of others) {
+    const { doc: pm, meta } = importMarkdown(md)
+    const head = tab.state!.selection.head
+    tab.doc.meta = meta
+    tab.state = editor.createState(pm)
+    tab.state = tab.state.apply(tab.state.tr.setSelection(TextSelection.near(pm.resolve(Math.min(head, pm.content.size)))))
+    tab.doc.saved = dirty ? null : tab.state.doc
+  }
   setDocument(md, { path: doc.path, eol: doc.eol, bom: doc.bom, mixedEol: doc.mixedEol, hash: doc.diskHash, root: doc.root, suggested: doc.suggested })
   if (dirty) doc.saved = null
   restorePosition(cursor, scroll)
@@ -572,12 +570,214 @@ function toggleSource() {
   toolbar.update()
 }
 
+// ------------------------------------------------------------------ tabs
+//
+// One tab per open document. The editor shows the one in front; the others keep their
+// editor state (undo history, selection) and scroll position until they come back.
+// Opening a file that is open already brings its tab to the front; a new, empty tab
+// that was never touched is used for the next file instead of a new one.
+
+interface Tab {
+  id: number
+  doc: DocState
+  /** its editor state while it is in the background (in front: the view's) */
+  state: EditorState | null
+  scroll: number
+}
+
+const blankDoc = (): DocState => ({ path: null, root: null, eol: 'lf', bom: false, mixedEol: false, meta: NEW_DOC_META, saved: null, diskHash: null, suggested: null })
+let nextTabId = 1
+let active: Tab = { id: nextTabId++, doc: blankDoc(), state: null, scroll: 0 }
+let tabs: Tab[] = [active]
+/** paths of closed tabs, for Ctrl+Shift+T */
+const closedTabs: string[] = []
+
+const tabState = (tab: Tab) => (tab === active ? view.state : tab.state!)
+const tabDirty = (tab: Tab) => tab.doc.saved === null || !tabState(tab).doc.eq(tab.doc.saved)
+/** a new document nobody typed in: the next opened file goes there */
+const pristine = (tab: Tab) => !tab.doc.path && !tab.doc.suggested && !tabDirty(tab)
+const tabName = (tab: Tab) => host.basename(tab.doc.path ?? tab.doc.suggested ?? t('doc.untitled'))
+
+/** Bring `tab` to the front. */
+function activate(tab: Tab) {
+  if (tab === active || !tabs.includes(tab)) return
+  applySource() // source edits belong to the tab they were made in
+  active.state = view.state
+  active.scroll = $('#scroller').scrollTop
+  active = tab
+  doc = tab.doc // before the state: node views resolve images from the document's folder
+  editor.setState(tab.state!)
+  tab.state = null
+  const scroll = tab.scroll
+  $('#scroller').scrollTop = scroll
+  requestAnimationFrame(() => ($('#scroller').scrollTop = scroll)) // images may still grow the page
+  if (sourceVisible) showSource()
+  lastTitle = ''
+  updateChrome()
+  toolbar.update()
+  void guard.checkDisk() // changed outside while it was in the background?
+}
+
+/** A new, empty tab right of the one in front. */
+function newTab(): Tab {
+  const tab: Tab = { id: nextTabId++, doc: blankDoc(), state: null, scroll: 0 }
+  tab.state = editor.createState(view.state.schema.nodes.doc.create(null, view.state.schema.nodes.paragraph.create()))
+  tab.doc.saved = tab.state.doc
+  tabs.splice(tabs.indexOf(active) + 1, 0, tab)
+  activate(tab)
+  return tab
+}
+
+/** A file is about to be loaded: into the empty tab in front, else into a new one. */
+function tabForNewDocument() {
+  if (!pristine(active)) newTab()
+}
+
+/** Close a tab (asks about unsaved changes); false if the user cancelled. */
+async function closeTab(tab: Tab): Promise<boolean> {
+  if (tabDirty(tab)) {
+    activate(tab)
+    if (!(await confirmDiscard())) return false
+  }
+  if (tab.doc.path) closedTabs.push(tab.doc.path)
+  if (tabs.length === 1) {
+    // the last one: it stays, empty
+    setDocument('', { path: null })
+    return true
+  }
+  const i = tabs.indexOf(tab)
+  if (tab === active) activate(tabs[i + 1] ?? tabs[i - 1])
+  tabs.splice(tabs.indexOf(tab), 1)
+  guard.onChange() // its unsaved changes are gone from the recovery copy
+  updateChrome()
+  return true
+}
+
+async function closeTabs(list: Tab[]) {
+  for (const tab of list) if (!(await closeTab(tab))) return
+}
+
+function cycleTab(step: number) {
+  const i = tabs.indexOf(active)
+  activate(tabs[(i + step + tabs.length) % tabs.length])
+  view.focus()
+}
+
+/** Ctrl+Shift+T: the tab closed last comes back. */
+async function reopenClosedTab() {
+  const path = closedTabs.pop()
+  if (path) await openPath(path)
+}
+
+/** A tab as a recovery copy / for the session. */
+function tabRecovery(tab: Tab): host.RecoveryData {
+  const state = tabState(tab)
+  const dirty = tabDirty(tab)
+  return {
+    path: tab.doc.path,
+    markdown: dirty ? (tab === active ? markdown() : exportMarkdown(state.doc, tab.doc.meta)) : null,
+    eol: tab.doc.eol,
+    bom: tab.doc.bom,
+    diskHash: tab.doc.diskHash,
+    savedAt: Date.now(),
+    cursor: state.selection.head,
+    scroll: tab === active ? $('#scroller').scrollTop : tab.scroll,
+  }
+}
+
+/** A remembered or recovered document back in a tab; its id (null: nothing to show). */
+async function restoreTab(data: host.RecoveryData): Promise<number | null> {
+  // reading the file also allows its images and finds the repository root for `/…` paths
+  const file = data.path ? await host.readFile(data.path).catch(() => null) : null
+  const open = data.path ? tabs.find((x) => samePath(x.doc.path, data.path)) : undefined
+  if (data.markdown === null) {
+    // a session without unsaved changes: just reopen the file (if it still exists)
+    if (open) return open.id
+    if (!file) return null
+    tabForNewDocument()
+    setDocument(file.text, file)
+    void rememberRecent(file.path)
+  } else {
+    if (open && !tabDirty(open)) activate(open)
+    else tabForNewDocument()
+    setDocument(data.markdown, { path: data.path, eol: data.eol, bom: data.bom, hash: data.diskHash, root: file?.root })
+    doc.saved = null // restored changes are unsaved
+  }
+  restorePosition(data.cursor)
+  if (data.scroll !== undefined) $('#scroller').scrollTop = active.scroll = data.scroll
+  updateChrome()
+  return active.id
+}
+
+const tabBar = createTabBar($('#tabbar'), {
+  activate: (id) => {
+    const tab = tabs.find((x) => x.id === id)
+    if (tab) activate(tab)
+  },
+  close: (id) => {
+    const tab = tabs.find((x) => x.id === id)
+    if (tab) void closeTab(tab)
+  },
+  create: () => {
+    newTab()
+    view.focus()
+  },
+  menu: (id, anchor) => {
+    const tab = tabs.find((x) => x.id === id)
+    if (tab) openMenu(anchor, tabMenu(tab))
+  },
+  move: (id, index) => {
+    const tab = tabs.find((x) => x.id === id)
+    if (!tab) return
+    tabs.splice(tabs.indexOf(tab), 1)
+    tabs.splice(index, 0, tab)
+    updateChrome()
+  },
+})
+
+function tabMenu(tab: Tab): MenuItem[] {
+  const i = tabs.indexOf(tab)
+  const path = tab.doc.path
+  return [
+    { label: t('tabs.close'), shortcut: kbd('Ctrl+W'), run: () => void closeTab(tab) },
+    { label: t('tabs.closeOthers'), disabled: tabs.length < 2, run: () => void closeTabs(tabs.filter((x) => x !== tab)) },
+    { label: t('tabs.closeRight'), disabled: i === tabs.length - 1, run: () => void closeTabs(tabs.slice(i + 1)) },
+    { label: t('tabs.closeAll'), run: () => void closeTabs([...tabs]) },
+    'separator',
+    { label: t('tabs.copyPath'), disabled: !path, run: () => path && void navigator.clipboard.writeText(path) },
+    ...(host.isTauri
+      ? [
+          { label: t('tabs.reveal'), disabled: !path, run: () => path && void host.revealFile(path).catch(() => {}) },
+          { label: t('tabs.showInTree'), disabled: !path || !fileTree, run: () => path && void fileTree?.show(path) },
+        ]
+      : []),
+  ]
+}
+
+/** What the tab bar shows (names: with the folder when two tabs have the same name). */
+function tabInfos(): TabInfo[] {
+  const names = tabs.map(tabName)
+  return tabs.map((tab, i) => {
+    const twice = names.some((n, k) => k !== i && n.toLowerCase() === names[i].toLowerCase())
+    const dir = tab.doc.path ? host.dirname(tab.doc.path) : ''
+    return {
+      id: tab.id,
+      name: names[i],
+      hint: twice && dir ? host.basename(dir) : '',
+      title: tab.doc.path ?? (tab.doc.suggested ? t('doc.newFrom', { path: tab.doc.suggested }) : t('doc.new')),
+      dirty: tabDirty(tab),
+      active: tab === active,
+    }
+  })
+}
+
 // ------------------------------------------------------------------ documents
 
+/** Load `text` into the tab in front (undo history starts anew). */
 function setDocument(text: string, file: FileInfo) {
   const { doc: pm, meta } = text ? importMarkdown(text) : { doc: null, meta: NEW_DOC_META }
   // path/root first: the editor resolves image paths while rendering the new document
-  doc = {
+  doc = active.doc = {
     path: file.path,
     root: file.root ?? (file.path ? host.dirname(file.path) : null),
     eol: file.eol ?? 'lf',
@@ -590,7 +790,7 @@ function setDocument(text: string, file: FileInfo) {
   }
   editor.load(pm ?? view.state.schema.nodes.doc.create(null, view.state.schema.nodes.paragraph.create()))
   doc.saved = view.state.doc
-  void guard.clearRecovery()
+  guard.onChange() // what was unsaved in this tab before is gone
   updateChrome()
   view.focus()
 }
@@ -617,9 +817,13 @@ function confirmDiscard(): Promise<boolean> {
 
 async function openPath(path: string) {
   if (isWorkspaceFile(path)) return openWorkspace(path)
+  // open already: its tab comes to the front
+  const open = tabs.find((x) => samePath(x.doc.path, path))
+  if (open) return activate(open)
   try {
     const f = await host.readFile(path)
     if (host.isHtmlFile(path)) return await importHtml(f)
+    tabForNewDocument()
     setDocument(f.text, f)
     void rememberRecent(f.path)
   } catch (e) {
@@ -653,6 +857,7 @@ async function importHtml(f: host.MdFile) {
     )
     if (choice !== 'import') return
   }
+  tabForNewDocument()
   setDocument(result.markdown, { path: null, suggested: `${withoutExt(f.path)}.md`, root: f.root })
   void rememberRecent(f.path)
   doc.saved = null // a new document: not saved yet
@@ -674,7 +879,6 @@ async function reloadFromDisk() {
 }
 
 async function openFile() {
-  if (!(await confirmDiscard())) return
   if (!host.isTauri) return browserOpen()
   const path = await host.pickMarkdown()
   if (path) await openPath(path)
@@ -721,7 +925,7 @@ function saveFile(saveAs: boolean): Promise<boolean> {
       doc.diskHash = hash
       doc.mixedEol = false
       doc.saved = snapshot
-      if (!isDirty()) void guard.clearRecovery()
+      guard.onChange() // the recovery copy: without this tab's changes now
       updateChrome()
       return true
     } catch (e) {
@@ -731,9 +935,9 @@ function saveFile(saveAs: boolean): Promise<boolean> {
   })
 }
 
-/** Close = back to an empty, unsaved document. */
+/** Close = close the tab in front. */
 async function closeDocument() {
-  if (await confirmDiscard()) setDocument('', { path: null })
+  await closeTab(active)
 }
 
 // ------------------------------------------------------------------ pasted images
@@ -802,7 +1006,6 @@ function openMenuItems(): MenuItem[] {
 }
 
 async function openRecent(path: string) {
-  if (!(await confirmDiscard())) return
   if ((await host.fileHash(path)) === null) {
     await removeRecent(path)
     recentCache = await recentFiles()
@@ -1015,6 +1218,7 @@ function browserOpen() {
     const raw = await file.text()
     const crlf = (raw.match(/\r\n/g) ?? []).length
     const lf = (raw.match(/\n/g) ?? []).length - crlf
+    tabForNewDocument()
     setDocument(raw.replace(/^﻿/, '').replace(/\r\n/g, '\n'), { path: file.name, eol: crlf > lf ? 'crlf' : 'lf', bom: raw.startsWith('﻿') })
   }
   input.click()
@@ -1050,8 +1254,12 @@ window.addEventListener(
     const k = e.key.toLowerCase()
     if (k === 's') run(() => void saveFile(e.shiftKey))
     else if (k === 'o' && !e.shiftKey) run(() => void openFile())
-    else if (k === 'n' && !e.shiftKey) run(() => void closeDocument())
+    else if ((k === 'n' || k === 't') && !e.shiftKey) run(() => (newTab(), view.focus()))
+    else if (k === 't' && e.shiftKey) run(() => void reopenClosedTab())
     else if (k === 'w' && !e.shiftKey) run(() => void closeDocument())
+    else if (k === 'tab') run(() => cycleTab(e.shiftKey ? -1 : 1))
+    else if (k === 'pagedown' && !e.shiftKey) run(() => cycleTab(1))
+    else if (k === 'pageup' && !e.shiftKey) run(() => cycleTab(-1))
     else if (k === 'p' && !e.shiftKey) run(() => void printDocument())
     else if (k === 'e' && e.shiftKey) run(() => void exportHtml())
     else if (k === 'm' && e.shiftKey) run(toggleSource)
@@ -1074,10 +1282,14 @@ async function setupWindow(view: EditorView) {
 
   // closing the window (also Cmd+Q on macOS)
   await getCurrentWindow().onCloseRequested(async (e) => {
-    // remember the session: the document (unsaved changes included) comes back next time
+    // remember the session: the tabs (unsaved changes included) come back next time
     if (sessionEnabled()) return guard.saveSession()
-    // otherwise: Save / Don't save / Cancel
-    if (!(await confirmDiscard())) return e.preventDefault()
+    // otherwise: Save / Don't save / Cancel for each tab with changes
+    for (const tab of [...tabs]) {
+      if (!tabDirty(tab)) continue
+      activate(tab)
+      if (!(await confirmDiscard())) return e.preventDefault()
+    }
     // leaving on purpose: no recovery copy must survive (it would be offered next time)
     await guard.clearRecovery()
   })
@@ -1086,8 +1298,7 @@ async function setupWindow(view: EditorView) {
   const { listen } = await import('@tauri-apps/api/event')
   await listen('open-file', async () => {
     const p = await host.initialFile()
-    if (p && isWorkspaceFile(p)) await openWorkspace(p)
-    else if (p && (await confirmDiscard())) await openPath(p)
+    if (p) await openPath(p)
   })
 
   // Windows blocks drag & drop from Explorer into an elevated (admin) process.
@@ -1102,9 +1313,10 @@ async function setupWindow(view: EditorView) {
     const paths = e.payload.paths
     const ws = paths.find(isWorkspaceFile)
     if (ws) return void (await openWorkspace(ws))
-    const md = paths.find((p) => host.isMarkdownFile(p) || host.isHtmlFile(p))
-    if (md) {
-      if (await confirmDiscard()) await openPath(md)
+    // documents: each in a tab
+    const docs = paths.filter((p) => host.isMarkdownFile(p) || host.isHtmlFile(p))
+    if (docs.length) {
+      for (const p of docs) await openPath(p)
       return
     }
     const images = paths.filter((p) => /\.(png|jpe?g|gif|svg|webp|avif|bmp|ico)$/i.test(p))
@@ -1130,6 +1342,7 @@ async function setupWindow(view: EditorView) {
 function applyStaticTexts() {
   document.documentElement.lang = getLang()
   $('#toolbar').setAttribute('aria-label', t('toolbar.label'))
+  $('#tabbar').setAttribute('aria-label', t('tabs.label'))
   $('#source-pane').setAttribute('aria-label', t('source.title'))
   $('#source-pane .pane-title').textContent = t('source.title')
   $('#zoom').setAttribute('aria-label', t('zoom.label'))
@@ -1173,11 +1386,12 @@ void (async () => {
     // the workspace of last time (before any document: it decides how [[…]] is read)
     const last = store.get<string | null>(WORKSPACE_KEY, null)
     if (last) await openWorkspace(last, true)
-    if (p) await openPath(p)
   }
-  // continue the last session, offer unsaved changes left by a crash
-  await guard.offerRecovery({ fileOpened: !!p && !isWorkspaceFile(p) })
+  // continue the last session (its tabs), offer unsaved changes left by a crash
+  await guard.offerRecovery()
+  // a file opened with the app: in a tab of its own, in front
+  if (p && !isWorkspaceFile(p)) await openPath(p)
 })()
 
 // Dev hook for testing in the browser console / pane.
-if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), workspace: () => workspace, wikiIndex: () => wikiIndex } })
+if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), tabs: () => tabs, workspace: () => workspace, wikiIndex: () => wikiIndex } })

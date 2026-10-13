@@ -693,6 +693,13 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
       await reveal(path)
     },
     visible: () => settings.visible,
+    /** Show a file in the tree (the tree appears; its folder becomes the top if it is not below it). */
+    async show(path: string) {
+      if (!settings.visible) setVisible(true)
+      if (!root || !pathBelow(root.path, path)) await setRoot(parentDir(path))
+      await reveal(path)
+      list.focus()
+    },
     /** the folder shown */
     root: () => root?.path ?? null,
     /** a workspace was opened (its folder becomes the tree) or closed (null) */

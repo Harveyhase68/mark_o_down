@@ -83,8 +83,11 @@ clean Markdown.
 - **Find & replace** with match case, whole word and regular expressions (`$1` groups).
 - **Safe** – changes by other programs are detected (reload or ask, never overwritten silently),
   unsaved work is recovered after a crash, recently opened files in the Open menu.
-- **Sessions like Notepad++** – closing the app keeps the document as it is, unsaved changes
-  included, and the next start continues with it. The file itself is only changed when you save.
+- **Tabs** – every document in its own tab, each with its own undo history and position;
+  drag to reorder, middle-click or × to close, right-click for *Close others / to the right /
+  all*, *Copy path*, *Show in file tree*. A file that is open already just comes to the front.
+- **Sessions like Notepad++** – closing the app keeps all tabs as they are, unsaved changes
+  included, and the next start continues with them. The files are only changed when you save.
 - **Open HTML** – converted to Markdown; a dialog lists exactly what Markdown can't keep.
 - **Export** – standalone HTML file, PDF, HTML to the clipboard, print. Document zoom 50–300 %.
 - **Paste images and links** – `Ctrl+V` of a screenshot saves it next to the document (`images/`)
@@ -129,7 +132,9 @@ right keys for your system.
 | Action | Keys |
 |---|---|
 | Open / Save / Save as | `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` |
-| Close document / Print | `Ctrl+W` / `Ctrl+P` |
+| New tab / Close tab / Print | `Ctrl+N` or `Ctrl+T` / `Ctrl+W` / `Ctrl+P` |
+| Next / previous tab / reopen closed tab | `Ctrl+Tab` or `Ctrl+PgDn` / `Ctrl+Shift+Tab` or `Ctrl+PgUp` / `Ctrl+Shift+T` |
+| Folder tree on / off | `Ctrl+Shift+B` |
 | Find / Find & replace / next / previous | `Ctrl+F` / `Ctrl+H` / `F3` / `Shift+F3` |
 | Zoom in / out / reset | `Ctrl+Mouse wheel`, `Ctrl+Plus` / `Ctrl+Minus` / `Ctrl+0` |
 | Export HTML | `Ctrl+Shift+E` |
@@ -230,6 +235,16 @@ checks that full re-serialization renders identical HTML.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+- **Tabs**: every opened document gets its own tab (a new, untouched empty tab is used for the
+  next file instead). Each tab keeps its undo history, cursor and scroll position; opening a
+  file that is open already brings its tab to the front, and so does following a link to it.
+  Two tabs with the same name show their folder. `Ctrl+N` / `Ctrl+T` new tab, `Ctrl+W` close
+  (asks about unsaved changes), `Ctrl+Tab` / `Ctrl+Shift+Tab` (or `Ctrl+PgDn` / `Ctrl+PgUp`)
+  switch, `Ctrl+Shift+T` reopens the tab closed last; middle-click closes, drag reorders,
+  right-click: close others / to the right / all, copy path, show in Explorer or the file tree.
+  Several files dropped from Explorer open in tabs. The **session** keeps all tabs (unsaved
+  changes included, the one in front stays in front); crash recovery covers all tabs too, and
+  recovery copies of earlier versions are still read.
 - **Drag a file from the folder tree into the document**: a link to it is inserted where it is
   dropped (a line shows where) – `[[kapitel1]]`, `[[teil 2/Kapitel 2]]` relative to the document,
   or a normal Markdown link `[Kapitel 2](teil%202/Kapitel%202.md)` without wiki links. A space is

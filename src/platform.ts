@@ -145,7 +145,29 @@ export interface RecoveryData {
   scroll?: number
 }
 
-export async function recoveryWrite(data: RecoveryData): Promise<void> {
+/** All tabs of a window (what the recovery file holds since there are tabs). */
+export interface RecoverySet {
+  version: 2
+  tabs: RecoveryData[]
+  /** the tab that was in front */
+  active: number
+  savedAt: number
+  session?: boolean
+}
+
+/** A recovery file of any version: before tabs it held one document. */
+export function readRecoverySet(raw: unknown): RecoverySet | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Partial<RecoverySet> & Partial<RecoveryData>
+  if (Array.isArray(o.tabs)) {
+    const tabs = o.tabs.filter((d) => d && typeof d === 'object' && 'markdown' in d)
+    return { version: 2, tabs, active: Math.min(Math.max(o.active ?? 0, 0), Math.max(tabs.length - 1, 0)), savedAt: o.savedAt ?? 0, session: !!o.session }
+  }
+  if ('markdown' in o) return { version: 2, tabs: [o as RecoveryData], active: 0, savedAt: o.savedAt ?? 0, session: !!o.session }
+  return null
+}
+
+export async function recoveryWrite(data: RecoverySet): Promise<void> {
   if (isTauri) await invoke('recovery_write', { data: JSON.stringify(data) })
 }
 
@@ -154,12 +176,13 @@ export async function recoveryClear(): Promise<void> {
 }
 
 /** Recovery copies left by crashed instances. */
-export async function recoveryOrphans(): Promise<{ id: string; data: RecoveryData }[]> {
+export async function recoveryOrphans(): Promise<{ id: string; data: RecoverySet }[]> {
   if (!isTauri) return []
   const list = await invoke<{ id: string; data: string }[]>('recovery_orphans')
   return list.flatMap(({ id, data }) => {
     try {
-      return [{ id, data: JSON.parse(data) as RecoveryData }]
+      const set = readRecoverySet(JSON.parse(data))
+      return set ? [{ id, data: set }] : []
     } catch {
       return [] // unreadable leftovers are ignored
     }

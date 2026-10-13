@@ -15,14 +15,17 @@
     <div id="middle">
       <aside id="filetree"></aside>
       <div id="tree-resizer" aria-hidden="true"></div>
-      <main id="workspace">
-        <div id="scroller"><article id="editor"></article></div>
-        <aside id="source-pane" aria-label="Markdown-Quelltext">
-          <div class="pane-title">Markdown (Export-Vorschau, schreibgeschützt)</div>
-          <textarea id="source" spellcheck="false"></textarea>
-          <div id="source-lint" hidden></div>
-        </aside>
-      </main>
+      <div id="docarea">
+        <nav id="tabbar"></nav>
+        <main id="workspace">
+          <div id="scroller"><article id="editor"></article></div>
+          <aside id="source-pane" aria-label="Markdown-Quelltext">
+            <div class="pane-title">Markdown (Export-Vorschau, schreibgeschützt)</div>
+            <textarea id="source" spellcheck="false"></textarea>
+            <div id="source-lint" hidden></div>
+          </aside>
+        </main>
+      </div>
     </div>
     <footer id="statusbar">
       <span id="status"></span>
