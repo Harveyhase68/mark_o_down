@@ -13,7 +13,7 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-**Version 0.7.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-070) · [Changelog](#changelog)
+**Version 0.7.1** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-070) · [Changelog](#changelog)
 
 </div>
 
@@ -23,6 +23,8 @@ clean Markdown.
 
 ## What's new in 0.7.0
 
+- 📚 **New in 0.7.1: Save workspace as PDF** – all documents of a workspace in one PDF, links
+  jump to the right page. Plus: F5 / F6 no longer reload or crash the window.
 - 🗂️ **Workspaces and a folder tree** – a `.modw` file for a folder of documents, the tree beside
   the editor (left or right, search, paste a path), favourites in *Open workspace …*.
 - 📑 **Tabs** – every document in its own tab with its own undo history; the session keeps them all.
@@ -216,7 +218,7 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
-### Unreleased
+### 0.7.1 – 2026-10-13
 
 **New**
 
