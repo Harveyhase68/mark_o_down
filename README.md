@@ -13,7 +13,7 @@
 [![Built with Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
-**Version 0.6.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-060) · [Changelog](#changelog)
+**Version 0.7.0** · [Download](https://github.com/Harveyhase68/mark_o_down/releases/latest) · [What's new](#whats-new-in-070) · [Changelog](#changelog)
 
 </div>
 
@@ -21,12 +21,17 @@ Mark O Down is not a Markdown editor with a preview pane – the document *is* t
 headings, bold text, lists, links, images, tables and badges directly, and the file on disk stays
 clean Markdown.
 
-## What's new in 0.6.0
+## What's new in 0.7.0
 
-- 📊 **Mermaid diagrams** – ` ```mermaid ` blocks are drawn like on GitHub; click to edit the source.
-- ✍️ **Extended syntax** – `^superscript^`, `~subscript~`, `==highlight==`, definition lists and
-  `[[wiki links]]` (Pandoc / Typora / Obsidian style), switchable under *Help* – off = exactly like GitHub.
-- New in 0.5.0: sessions like Notepad++, math, syntax highlighting, footnotes – see the [changelog](#changelog).
+- 🗂️ **Workspaces and a folder tree** – a `.modw` file for a folder of documents, the tree beside
+  the editor (left or right, search, paste a path), favourites in *Open workspace …*.
+- 📑 **Tabs** – every document in its own tab with its own undo history; the session keeps them all.
+- 🔗 **Linked documents** – `[[wiki links]]` like Obsidian (found by name in the workspace),
+  `Ctrl+click` follows any link, `Alt+←` goes back; drag a file from the tree into the text → a link.
+- 📖 **`[[toc]]`** – a table of contents of the whole workspace (or the document), also in HTML and PDF.
+- ✏️ **Split editor** – the Markdown source beside the document can be edited, with an HTML check.
+- 📄 **Save as PDF** and **spell checking** with the system's own checker.
+- New in 0.6.0: Mermaid diagrams and the extended syntax – see the [changelog](#changelog).
 
 ## Features
 
@@ -211,7 +216,7 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
-### Unreleased
+### 0.7.0 – 2026-10-13
 
 **New**
 
