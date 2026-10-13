@@ -6,10 +6,9 @@
 use std::path::PathBuf;
 
 use serde::Serialize;
-use tauri::Manager;
 
 fn recovery_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("recovery"))
+    Ok(crate::paths::app_dir(app, crate::paths::AppDir::Data)?.join("recovery"))
 }
 
 fn own_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {

@@ -281,6 +281,21 @@ body.source-pending #scroller {
 
 /* ---------------------------------------------------------------- document */
 
+/* the heading a link jumped to, marked for a moment */
+.md-editor .jump-target {
+  animation: jump-target 1.6s ease-out;
+  border-radius: 4px;
+}
+
+@keyframes jump-target {
+  from {
+    background: var(--accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+
 /* spell checking: misspelled words */
 .md-editor .spell-error {
   text-decoration: underline wavy #e5484d;

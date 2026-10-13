@@ -7,7 +7,7 @@ describe('HTML export', () => {
   it('renders GFM, keeps raw HTML, drops front matter', () => {
     const html = renderHtml(md)
     expect(html).toContain('<div align="center">')
-    expect(html).toContain('<h1>Mark O Down 😂</h1>')
+    expect(html).toContain('<h1 id="mark-o-down-">Mark O Down 😂</h1>')
     expect(html).toContain('<td><strong>1</strong></td>')
     expect(html).toContain('type="checkbox"')
     expect(html).not.toContain('title: x')

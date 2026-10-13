@@ -47,7 +47,8 @@ export interface EditorHooks {
   docPath: () => string | null
   /** Let the user pick a local image; returns a Markdown path or null. */
   pickImage?: () => Promise<string | null>
-  openExternal: (href: string) => void
+  /** Ctrl+click on a link (see main.ts followLink) */
+  followLink: (href: string, at: number) => void
   /** Ctrl+V of image data (screenshot …): store it next to the document and insert it. */
   pasteImage: (view: EditorView, image: File) => void
   onChange: (view: EditorView) => void
@@ -233,7 +234,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
             const pos = view.posAtDOM(a, 0)
             const mark = view.state.doc.resolve(pos).marks().find((m) => m.type === K.link) ?? K.link.isInSet(view.state.doc.nodeAt(pos)?.marks ?? [])
             const href = mark?.attrs.href || a.getAttribute('href')
-            if (href) hooks.openExternal(href)
+            if (href) hooks.followLink(href, pos)
             return true
           }
           return false

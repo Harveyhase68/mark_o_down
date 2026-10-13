@@ -3,6 +3,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView } from 'prosemirror-view'
 import { importMarkdown, exportMarkdown, NEW_DOC_META, type DocMeta } from './md/document'
 import { applyFix, lintHtml } from './md/htmlLint'
+import { findAnchor, parseLinkTarget } from './md/anchors'
 import { documentTitle, renderHtml, renderHtmlPage } from './md/html'
 import { createEditor, editImage, editLink, insertEmoji, type EditorHooks } from './editor/editor'
 import { createToolbar } from './editor/toolbar'
@@ -77,7 +78,7 @@ const hooks: EditorHooks = {
         return file ? host.relativeImagePath(file, doc.path) : null
       }
     : undefined,
-  openExternal: (href) => void host.openExternal(href),
+  followLink: (href, at) => void followLink(href, at),
   pasteImage: (v, image) => void pasteImage(v, image),
   onChange: () => {
     scheduleUpdate()
@@ -273,6 +274,100 @@ function applySource() {
   scheduleLint()
 }
 
+// ------------------------------------------------------------------ following links
+//
+// Ctrl+click: `#anchor` jumps to the heading, `other.md#anchor` opens it in Mark O Down
+// (and jumps), web addresses go to the browser. Another local file is only shown in
+// Explorer – a link in a document must never start a program. Alt+←/→ (or the mouse's
+// side buttons) go back and forth, like a browser.
+
+interface Place {
+  path: string | null
+  pos: number
+  scroll: number
+}
+const history = { back: [] as Place[], forward: [] as Place[] }
+/** Where we are; `at`: the clicked link (Ctrl+click does not move the cursor there) */
+const here = (at?: number): Place => ({ path: doc.path, pos: at ?? view.state.selection.head, scroll: $('#scroller').scrollTop })
+const windowsPaths = /Windows/.test(navigator.userAgent)
+const samePath = (a: string | null, b: string | null) => a !== null && b !== null && (windowsPaths ? a.toLowerCase() === b.toLowerCase() : a === b)
+
+/** Remember where we are before a jump (a new jump forgets the "forward" places). */
+function remember(at?: number) {
+  history.back.push(here(at))
+  history.forward.length = 0
+}
+
+async function followLink(href: string, at?: number) {
+  const target = parseLinkTarget(href)
+  if (!target) return
+  if (target.kind === 'external') return void host.openExternal(target.url)
+  if (target.kind === 'anchor') return jumpToAnchor(target.fragment, true, at)
+  if (!doc.path && !host.isFileSystemAbsolute(target.path)) return flash(t('link.needsSave'))
+  // like images: relative to the document, `/…` to the repository root (GitHub)
+  const path = host.isFileSystemAbsolute(target.path)
+    ? target.path
+    : host.joinPath(target.path.startsWith('/') && doc.root ? doc.root : host.dirname(doc.path!), target.path)
+  if (samePath(path, doc.path)) return target.fragment ? jumpToAnchor(target.fragment, true, at) : undefined
+  // a broken link: a note in the status bar (not a dialog – it is just a link)
+  if ((await host.fileHash(path).catch(() => null)) === null) return flash(t('link.notFound', { name: target.path }))
+  if (!host.isMarkdownFile(path)) {
+    await host.revealFile(path).catch(() => {})
+    return flash(t('link.revealed', { name: host.basename(path) }))
+  }
+  const from = here(at)
+  if (!(await confirmDiscard())) return
+  await openPath(path)
+  if (!samePath(doc.path, path)) return // could not be opened (the error was shown)
+  history.back.push(from)
+  history.forward.length = 0
+  if (target.fragment) jumpToAnchor(target.fragment, false)
+}
+
+/** Put the heading (or HTML anchor) at the top of the window and mark it briefly. */
+function jumpToAnchor(fragment: string, record: boolean, at?: number) {
+  const anchor = findAnchor(view.state.doc, fragment)
+  if (!anchor) return flash(t('link.anchorNotFound', { anchor: fragment }))
+  if (record) remember(at)
+  view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(anchor.pos + 1))))
+  const scroller = $('#scroller')
+  const top = view.coordsAtPos(anchor.pos + 1).top - scroller.getBoundingClientRect().top
+  scroller.scrollTop += top - 24
+  const el = view.nodeDOM(anchor.pos)
+  const block = el instanceof HTMLElement ? el : (el?.parentElement ?? null)
+  if (block) {
+    block.classList.remove('jump-target')
+    void block.offsetWidth // restart the animation
+    block.classList.add('jump-target')
+    setTimeout(() => block.classList.remove('jump-target'), 1600)
+  }
+  view.focus()
+}
+
+/** Alt+← / Alt+→: to the place before (after) the last jump, also into another file. */
+async function travel(direction: 'back' | 'forward') {
+  const [from, to] = direction === 'back' ? [history.back, history.forward] : [history.forward, history.back]
+  const place = from.pop()
+  if (!place) return
+  const current = here()
+  if (place.path && !samePath(place.path, doc.path)) {
+    if (!(await confirmDiscard())) return void from.push(place)
+    await openPath(place.path)
+    if (!samePath(doc.path, place.path)) return // gone meanwhile
+  }
+  to.push(current)
+  restorePosition(place.pos, place.scroll)
+  view.focus()
+}
+
+// the mouse's back / forward buttons
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 3 || e.button === 4) {
+    e.preventDefault()
+    void travel(e.button === 3 ? 'back' : 'forward')
+  }
+})
+
 // ------------------------------------------------------------------ keeping the cursor
 //
 // A click on the page margin (outside the editable area) puts the cursor at the nearest
@@ -385,7 +480,7 @@ function restorePosition(cursor?: number, scroll?: number) {
     const at = Math.max(0, Math.min(cursor, view.state.doc.content.size))
     view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(at))).setMeta('addToHistory', false))
   }
-  if (scroll) requestAnimationFrame(() => ($('#scroller').scrollTop = scroll))
+  if (scroll !== undefined) requestAnimationFrame(() => ($('#scroller').scrollTop = scroll))
 }
 
 /** Short confirmation in the status bar. */
@@ -748,6 +843,9 @@ window.addEventListener(
       fn()
     }
     if (e.key === 'F1') return run(() => void host.openExternal(HELP_URL))
+    // back / forward after following links
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowLeft') return run(() => void travel('back'))
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowRight') return run(() => void travel('forward'))
     if (e.key === 'F3') return run(() => findBar.next(e.shiftKey ? -1 : 1))
     if (e.key === 'Escape' && findBar.isOpen()) return run(() => findBar.close())
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return
@@ -873,4 +971,4 @@ void (async () => {
 })()
 
 // Dev hook for testing in the browser console / pane.
-if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, isDirty: () => isDirty() } })
+if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty() } })

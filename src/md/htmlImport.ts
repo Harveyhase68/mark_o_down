@@ -30,7 +30,8 @@ export interface HtmlImport {
 
 /** Converted to Markdown without loss (with the attributes listed). */
 const KEPT: Record<string, string[]> = {
-  p: [], h1: [], h2: [], h3: [], h4: [], h5: [], h6: [],
+  // heading ids are made from the text (GitHub, our export): nothing is lost
+  p: [], h1: ['id'], h2: ['id'], h3: ['id'], h4: ['id'], h5: ['id'], h6: ['id'],
   strong: [], b: [], em: [], i: [], del: [], s: [], strike: [], code: [], kbd: [], samp: [], tt: [], var: [],
   a: ['href', 'title'],
   img: ['src', 'alt', 'title', 'width', 'height', 'align'],

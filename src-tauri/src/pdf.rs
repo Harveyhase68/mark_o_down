@@ -55,7 +55,7 @@ mod windows_pdf {
     pub async fn save(app: tauri::AppHandle, html: String, path: String) -> Result<(), String> {
         // the page as a file the hidden window loads through the asset protocol (like
         // the document's images, whose src the frontend has already turned into asset URLs)
-        let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("pdf");
+        let dir = crate::paths::app_dir(&app, crate::paths::AppDir::Cache)?.join("pdf");
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let page = dir.join(format!("page-{}-{n}.html", std::process::id()));

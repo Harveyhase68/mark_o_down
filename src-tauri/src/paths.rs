@@ -2,6 +2,37 @@
 
 use std::path::{Path, PathBuf};
 
+/// The app's own folders.
+#[derive(Clone, Copy)]
+pub enum AppDir {
+    Data,
+    Config,
+    Cache,
+}
+
+/// A folder of the app (sessions, settings, dictionaries, caches). A **debug build**
+/// started with `MARKODOWN_TEST_HOME=<folder>` uses that folder instead: test
+/// instances must never see or change the user's sessions and settings.
+pub fn app_dir(app: &tauri::AppHandle, which: AppDir) -> Result<PathBuf, String> {
+    #[cfg(debug_assertions)]
+    if let Some(home) = std::env::var_os("MARKODOWN_TEST_HOME") {
+        let sub = match which {
+            AppDir::Data => "data",
+            AppDir::Config => "config",
+            AppDir::Cache => "cache",
+        };
+        return Ok(PathBuf::from(home).join(sub));
+    }
+    use tauri::Manager;
+    let path = app.path();
+    match which {
+        AppDir::Data => path.app_data_dir(),
+        AppDir::Config => path.app_config_dir(),
+        AppDir::Cache => path.app_cache_dir(),
+    }
+    .map_err(|e| e.to_string())
+}
+
 /// Absolute, normalized path without the `\\?\` prefix Windows' canonicalize adds.
 pub fn absolute(path: &Path) -> PathBuf {
     let abs = std::fs::canonicalize(path)

@@ -119,6 +119,7 @@ right keys for your system.
 | Bold / Italic / Strikethrough / Code | `Ctrl+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
 | Link | `Ctrl+K` |
 | Emoji & symbols | `Ctrl+.` |
+| Follow a link / back / forward | `Ctrl+click` / `Alt+←` / `Alt+→` |
 | Footnote | `Ctrl+Alt+F` (double-click a footnote number: go to the note) |
 | Formula block | type `$$` + space in an empty line |
 | Headings / Paragraph | `Ctrl+Alt+1…3` / `Ctrl+Alt+0` |
@@ -193,6 +194,11 @@ checks that full re-serialization renders identical HTML.
   edited too. Whichever side you type in leads: while source changes are not applied yet the
   visual editor is dimmed, after a short pause – or as soon as you click elsewhere – they are
   applied (only the blocks that changed). `Ctrl+Z` works per side.
+- **Following links** (`Ctrl+click`): `[Text](#heading)` jumps to the heading (anchors as on
+  GitHub, also in the HTML export), `[Text](other.md#heading)` opens the file in Mark O Down and
+  jumps there, `/…` paths start at the repository root; `Alt+←` / `Alt+→` (or the mouse's side
+  buttons) go back and forth. Web links open in the browser; other local files are only shown in
+  Explorer – a link never starts a program.
 - **Spell checking** with the operating system's own checker (Windows spell checker, macOS
   spelling, Hunspell dictionaries on Linux): misspelled words are underlined in red; right-click
   for suggestions, *Add to dictionary* and *Ignore*. The **language of the texts** is chosen under

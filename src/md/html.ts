@@ -11,6 +11,7 @@ import type { HLJSApi } from 'highlight.js'
 import { extendedSyntaxOn, markdownPlugins } from './markdown'
 import { defListHastHandlers } from 'mdast-util-definition-list'
 import type { MathRenderer } from './mathRender'
+import { slugify } from './anchors'
 
 export interface RenderOptions {
   /** Colour fenced code blocks (classes as on GitHub, see PAGE_CSS). */
@@ -58,12 +59,34 @@ function rehypeCodeAndMath(opts: RenderOptions) {
   }
 }
 
+/** Headings get GitHub's ids, so `[x](#installation)` works in the exported page too. */
+function rehypeHeadingIds() {
+  return (tree: HRoot) => {
+    const seen = new Map<string, number>()
+    const textOf = (n: HRoot | Element | { type: string; value?: string }): string =>
+      'children' in n ? n.children.map((c) => textOf(c as Element)).join('') : n.type === 'text' ? (n.value ?? '') : ''
+    const visit = (node: HRoot | Element) => {
+      for (const child of node.children) {
+        if (child.type !== 'element') continue
+        if (/^h[1-6]$/.test(child.tagName) && child.properties.id === undefined) {
+          const base = slugify(textOf(child))
+          const n = seen.get(base) ?? 0
+          seen.set(base, n + 1)
+          child.properties.id = n ? `${base}-${n}` : base
+        } else visit(child)
+      }
+    }
+    visit(tree)
+  }
+}
+
 // the same Markdown dialect as the editor (GFM, math, front matter, extended syntax if on)
 const processor = (opts: RenderOptions = {}) =>
   unified()
     .use(remarkParse)
     .use(markdownPlugins()) // front matter is metadata, not content
     .use(remarkRehype, { allowDangerousHtml: true, handlers: defListHastHandlers as never })
+    .use(rehypeHeadingIds)
     .use(rehypeCodeAndMath, opts)
     .use(rehypeStringify, { allowDangerousHtml: true })
 const plain = new Map<boolean, ReturnType<typeof processor>>()

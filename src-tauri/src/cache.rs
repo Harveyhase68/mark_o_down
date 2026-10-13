@@ -4,7 +4,6 @@
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
-use tauri::Manager;
 
 /// Only plain file names inside the config folder (no paths).
 fn config_file(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
@@ -14,13 +13,13 @@ fn config_file(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
     if !valid {
         return Err(format!("invalid config file name: {name}"));
     }
-    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    let dir = crate::paths::app_dir(app, crate::paths::AppDir::Config)?;
     Ok(dir.join(name))
 }
 
 #[tauri::command]
 pub fn config_dir(app: tauri::AppHandle) -> Result<String, String> {
-    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    let dir = crate::paths::app_dir(&app, crate::paths::AppDir::Config)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.to_string_lossy().into_owned())
 }
@@ -66,7 +65,7 @@ pub async fn fetch_cached(app: tauri::AppHandle, url: String, max_age_hours: f64
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err(format!("only http(s) URLs are allowed: {url}"));
     }
-    let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("remote");
+    let dir = crate::paths::app_dir(&app, crate::paths::AppDir::Cache)?.join("remote");
     let path = dir.join(cache_key(&url));
     let max_age = Duration::from_secs_f64(max_age_hours.max(0.0) * 3600.0);
 

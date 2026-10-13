@@ -66,6 +66,13 @@ export async function configWrite(name: string, text: string): Promise<void> {
 }
 
 /** Show a config file in Explorer (selected). */
+/** Show a file in Explorer / Finder / the file manager (not opened: it may be a program). */
+export async function revealFile(path: string): Promise<void> {
+  if (!isTauri) return
+  const { revealItemInDir } = await import('@tauri-apps/plugin-opener')
+  await revealItemInDir(path)
+}
+
 export async function revealConfigFile(name: string): Promise<void> {
   if (!isTauri) return
   const dir = await invoke<string>('config_dir')
@@ -208,7 +215,8 @@ export async function setWindowTitle(title: string): Promise<void> {
 const sep = (p: string) => (p.includes('\\') ? '\\' : '/')
 export const dirname = (p: string) => p.slice(0, Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/')))
 export const basename = (p: string) => p.slice(Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/')) + 1)
-const isFileSystemAbsolute = (p: string) => /^([a-zA-Z]:[\\/]|\\\\)/.test(p)
+/** C:\…, \\server\… – a `/…` path is not absolute here: like on GitHub it means "from the repository root" */
+export const isFileSystemAbsolute = (p: string) => /^([a-zA-Z]:[\\/]|\\\\)/.test(p)
 
 /** Join and normalize `.`/`..` segments, using the separator of `base`. */
 export function joinPath(base: string, rel: string): string {
