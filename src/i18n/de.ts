@@ -313,6 +313,7 @@ export const de = {
   'guard.restore': 'Wiederherstellen',
   'guard.recoverSessionText': "Von „{name}“ gibt es noch ungespeicherte Änderungen aus einem anderen Fenster (Stand {when}).\n\n„Wiederherstellen“ öffnet sie – die Datei selbst wird erst beim Speichern geändert.",
   'session.restored': "Letzte Sitzung fortgesetzt – „{name}“ hat ungespeicherte Änderungen",
+  'session.reloaded': "Die Ansicht wurde neu geladen – alle Tabs samt ungespeicherten Änderungen sind wieder da",
   'guard.externalChange': 'Die Datei wurde außerhalb von Mark O Down geändert.',
 
   // ------------------------------------------------------------ HTML import: what gets lost

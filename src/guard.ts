@@ -128,9 +128,11 @@ export function createGuard(deps: GuardDeps) {
     if (!host.isTauri) return
     clearTimeout(recoveryTimer)
     recoveryTimer = window.setTimeout(() => {
-      if (deps.anyDirty()) {
+      // also without unsaved changes: the open tabs, in case the page has to be loaded again
+      const set = snapshot(false)
+      if (set.tabs.some((d) => d.path || d.markdown !== null)) {
         recoveryWritten = true
-        void host.recoveryWrite(snapshot(false)).catch(() => {})
+        void host.recoveryWrite(set).catch(() => {})
       } else if (recoveryWritten) void clearRecovery()
     }, RECOVERY_DELAY)
   }
@@ -167,8 +169,18 @@ export function createGuard(deps: GuardDeps) {
    * unsaved changes – they open in tabs of their own.
    */
   async function offerRecovery() {
-    const copies = (await host.recoveryOrphans().catch(() => [])).sort((a, b) => b.data.savedAt - a.data.savedAt)
     const names = (tabs: host.RecoveryData[]) => tabs.map((d) => (d.path ? host.basename(d.path) : t('doc.untitled'))).join(', ')
+    // our own copy: the page was loaded again (its process crashed) – everything comes back
+    const own = await host.recoveryOwn().catch(() => null)
+    if (own?.tabs.length) {
+      const ids: (number | null)[] = []
+      for (const d of own.tabs) ids.push(await deps.restore(d))
+      const front = ids[own.active] ?? ids.findLast((id) => id !== null)
+      if (front != null) deps.activate(front)
+      onChange()
+      deps.flash(t('session.reloaded'))
+    }
+    const copies = (await host.recoveryOrphans().catch(() => [])).sort((a, b) => b.data.savedAt - a.data.savedAt)
     const session = copies.find((c) => c.data.session)
     if (session) {
       const ids: (number | null)[] = []
@@ -202,9 +214,11 @@ export function createGuard(deps: GuardDeps) {
       )
       if (choice === 'cancel') continue // keep it for the next start
       if (choice === 'restore') {
-        let last: number | null = null
-        for (const d of unsaved) last = (await deps.restore(d)) ?? last
-        if (last !== null) deps.activate(last)
+        // all its tabs come back (the others reopen their files), the one in front stays in front
+        const ids: (number | null)[] = []
+        for (const d of data.tabs) ids.push(await deps.restore(d))
+        const front = ids[data.active] ?? ids.findLast((x) => x !== null)
+        if (front != null) deps.activate(front)
       }
       await host.recoveryRemove(id).catch(() => {})
       if (choice === 'restore') onChange()

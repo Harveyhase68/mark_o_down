@@ -302,6 +302,7 @@ export const it: Messages = {
   'guard.restore': 'Ripristina',
   'guard.recoverSessionText': "«{name}» ha ancora modifiche non salvate di un'altra finestra (stato del {when}).\n\n«Ripristina» le apre – il file viene modificato solo al salvataggio.",
   'session.restored': "Ultima sessione ripresa – «{name}» ha modifiche non salvate",
+  'session.reloaded': "La vista è stata ricaricata – tutte le schede, modifiche non salvate comprese, sono di nuovo qui",
   'guard.externalChange': 'Il file è stato modificato al di fuori di Mark O Down.',
 
   'loss.script': 'Script (<script>)',

@@ -1295,6 +1295,12 @@ function browserSave(text: string): boolean {
 window.addEventListener(
   'keydown',
   (e) => {
+    // the browser's keys must never do browser things: F5 / Ctrl+R reload the page (open
+    // tabs and unsaved changes in memory would be gone), F6 / F7 are browser UI. Windows:
+    // the web view itself ignores them too (webview.rs); this covers Linux and macOS.
+    // (The page still sees them: F5 refreshes the folder tree.)
+    const k0 = e.key.toLowerCase()
+    if (e.key === 'F5' || e.key === 'F6' || e.key === 'F7' || e.key === 'BrowserRefresh' || ((e.ctrlKey || e.metaKey) && k0 === 'r')) e.preventDefault()
     // dialogs (picker, config editor …) handle their own keys
     if (modalOpen()) return
     const run = (fn: () => void) => {
@@ -1327,6 +1333,14 @@ window.addEventListener(
   },
   true,
 )
+
+// Right-click outside the text: no browser menu (Back, Reload, Save as … mean nothing here).
+// In text (editor, source, fields) the menu for cut / copy / paste stays.
+document.addEventListener('contextmenu', (e) => {
+  if (e.defaultPrevented) return
+  const target = e.target as HTMLElement
+  if (!target.closest?.('input, textarea, [contenteditable="true"]')) e.preventDefault()
+})
 
 async function setupWindow(view: EditorView) {
   if (!host.isTauri) {

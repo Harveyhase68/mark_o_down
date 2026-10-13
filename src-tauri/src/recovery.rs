@@ -23,6 +23,17 @@ pub fn recovery_write(app: tauri::AppHandle, data: String) -> Result<(), String>
     crate::mdfile::write_atomic(&path, data.as_bytes()).map_err(|e| e.to_string())
 }
 
+/// This instance's own recovery copy, if there is one: at the start of the page that means
+/// the page was loaded again (a crashed page process) – its tabs come back from it.
+#[tauri::command]
+pub fn recovery_own(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(own_file(&app)?) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 /// Remove this instance's recovery copy (document saved, closed or discarded).
 #[tauri::command]
 pub fn recovery_clear(app: tauri::AppHandle) -> Result<(), String> {

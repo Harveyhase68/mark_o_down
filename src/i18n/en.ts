@@ -302,6 +302,7 @@ export const en: Messages = {
   'guard.restore': 'Restore',
   'guard.recoverSessionText': "\"{name}\" still has unsaved changes from another window (as of {when}).\n\n\"Restore\" opens them – the file itself is only changed when you save.",
   'session.restored': "Last session continued – \"{name}\" has unsaved changes",
+  'session.reloaded': "The view was reloaded – all tabs, unsaved changes included, are back",
   'guard.externalChange': 'The file was changed outside of Mark O Down.',
 
   'loss.script': 'Scripts (<script>)',

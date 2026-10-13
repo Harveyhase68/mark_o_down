@@ -302,6 +302,7 @@ export const fr: Messages = {
   'guard.restore': 'Restaurer',
   'guard.recoverSessionText': "« {name} » a encore des modifications non enregistrées d'une autre fenêtre (état du {when}).\n\n« Restaurer » les ouvre – le fichier lui-même n'est modifié qu'à l'enregistrement.",
   'session.restored': "Dernière session reprise – « {name} » a des modifications non enregistrées",
+  'session.reloaded': "L’affichage a été rechargé – tous les onglets, modifications non enregistrées comprises, sont de retour",
   'guard.externalChange': 'Le fichier a été modifié en dehors de Mark O Down.',
 
   'loss.script': 'Scripts (<script>)',

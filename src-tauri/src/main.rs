@@ -6,6 +6,7 @@ mod mdfile;
 mod paths;
 mod pdf;
 mod spell;
+mod webview;
 mod recovery;
 
 use std::path::{Path, PathBuf};
@@ -200,6 +201,7 @@ fn main() {
             // The window starts hidden and the frontend shows it once the editor is
             // rendered (no flash of the unstyled page). Fallback if that never happens:
             let window = app.get_webview_window("main").expect("main window");
+            webview::harden(&window);
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(4));
                 if !window.is_visible().unwrap_or(true) {
@@ -216,6 +218,7 @@ fn main() {
             file_hash,
             recovery::recovery_write,
             recovery::recovery_clear,
+            recovery::recovery_own,
             recovery::recovery_orphans,
             recovery::recovery_remove,
             list_images,

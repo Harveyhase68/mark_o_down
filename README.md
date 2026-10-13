@@ -216,6 +216,18 @@ checks that full re-serialization renders identical HTML.
 
 ## Changelog
 
+### Unreleased
+
+**Fixed**
+
+- **F5 / Ctrl+R no longer reload the window** (all tabs and unsaved changes in memory were
+  gone), and **F6 no longer kills the built-in web engine** (the window stayed empty and could
+  only be ended in Task Manager). The browser's own keys and its right-click menu (Back, Reload …)
+  are off; F5 still refreshes the folder tree.
+- **Safety net**: should the web engine crash anyway, the view reloads and all tabs come back with
+  their unsaved changes; if the whole engine is gone, Mark O Down restarts and offers them. The
+  recovery copy now holds all open tabs, and restoring it brings them all back.
+
 ### 0.7.0 – 2026-10-13
 
 **New**

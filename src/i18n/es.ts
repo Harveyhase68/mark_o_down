@@ -302,6 +302,7 @@ export const es: Messages = {
   'guard.restore': 'Restaurar',
   'guard.recoverSessionText': "«{name}» aún tiene cambios sin guardar de otra ventana (a fecha de {when}).\n\n«Restaurar» los abre; el archivo solo cambia al guardar.",
   'session.restored': "Última sesión recuperada: «{name}» tiene cambios sin guardar",
+  'session.reloaded': "La vista se ha recargado: todas las pestañas, incluidos los cambios sin guardar, están de vuelta",
   'guard.externalChange': 'El archivo se modificó fuera de Mark O Down.',
 
   'loss.script': 'Scripts (<script>)',

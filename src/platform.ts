@@ -189,6 +189,17 @@ export async function recoveryOrphans(): Promise<{ id: string; data: RecoverySet
   })
 }
 
+/** This window's own recovery copy (the page was loaded again after a crash of its process). */
+export async function recoveryOwn(): Promise<RecoverySet | null> {
+  if (!isTauri) return null
+  const text = await invoke<string | null>('recovery_own')
+  try {
+    return text ? readRecoverySet(JSON.parse(text)) : null
+  } catch {
+    return null
+  }
+}
+
 export async function recoveryRemove(id: string): Promise<void> {
   if (isTauri) await invoke('recovery_remove', { id })
 }
