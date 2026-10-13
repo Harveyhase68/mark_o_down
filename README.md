@@ -34,6 +34,12 @@ clean Markdown.
   inline code, code blocks, bullet/numbered/task lists, quotes, links, images, horizontal rules, tables,
   footnotes – plus superscript, subscript and highlight as the HTML tags GitHub renders
   (`<sup>`, `<sub>`, `<mark>`).
+- **Folder tree** (`Ctrl+Shift+B`) beside the editor – on the left or right, width by dragging its
+  edge, can be hidden; the last folder is remembered. The field on top finds files and folders
+  below the current folder by part of their name (`liz` → `Lizenz.md`, `Blizzard.md`); a pasted
+  path (file or folder, also with quotes from *Copy as path*) goes straight there. Arrow keys,
+  `Enter`, type the first letters to jump, double-click a folder to show only it, `Backspace` /
+  ↑ for the parent folder, a small drive selector on Windows.
 - **Mermaid diagrams** like on GitHub: ` ```mermaid ` blocks are drawn (flowcharts, sequence,
   class, state, Gantt, pie … diagrams); click a diagram to edit its source below it. Also in the
   HTML export and print. Mermaid is loaded only when a document has a diagram.
@@ -215,6 +221,11 @@ checks that full re-serialization renders identical HTML.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+- **Folder tree** (`Ctrl+Shift+B`): folders and Markdown files beside the editor, left or right,
+  resizable, can be hidden – the last folder is remembered. Search by part of a name (only in the
+  current folder and below, not the whole disk), paste a path to go there, keyboard navigation
+  with type-ahead, double-click a folder to make it the top, drive selector on Windows. Files
+  that appear or disappear outside are picked up when the window is activated.
 - **Wiki links** (extended syntax): `[[Link]]`, `[[Link|Text]]`, `[[Link#Heading]]`,
   `[[#Heading]]` (in this document), `[[sub/Link]]`, `[[../sub/Link]]` – resolved from the
   document's folder, `.md` may be left out. Typing the closing `]]` creates the link, double-click

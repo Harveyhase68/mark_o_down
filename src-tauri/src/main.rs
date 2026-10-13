@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod cache;
+mod files;
 mod mdfile;
 mod paths;
 mod pdf;
@@ -228,6 +229,10 @@ fn main() {
             spell::spell_languages,
             spell::spell_check,
             spell::spell_suggest,
+            files::list_dir,
+            files::list_roots,
+            files::path_kind,
+            files::find_files,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

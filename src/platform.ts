@@ -361,3 +361,42 @@ export async function savePastedImage(dir: string, subdir: string, stem: string,
   for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
   return invoke<string>('save_pasted_image', { dir, subdir, stem, ext, data: btoa(binary) })
 }
+
+// ------------------------------------------------------------------ folder tree
+
+export interface DirEntry {
+  name: string
+  dir: boolean
+}
+
+/** Folders and Markdown files in `path` (unsorted; hidden ones left out). */
+export async function listDir(path: string): Promise<DirEntry[]> {
+  return invoke<DirEntry[]>('list_dir', { path })
+}
+
+/** The drives (Windows), else `/` and the home folder. */
+export async function listRoots(): Promise<string[]> {
+  return isTauri ? invoke<string[]>('list_roots') : []
+}
+
+export async function pathKind(path: string): Promise<'file' | 'dir' | null> {
+  return invoke<'file' | 'dir' | null>('path_kind', { path })
+}
+
+export interface FoundFiles {
+  /** relative paths with `/` */
+  found: { path: string; dir: boolean }[]
+  more: boolean
+  cancelled: boolean
+}
+
+/** Files and folders below `root` whose name contains `query` (a newer search cancels older ones). */
+export async function findFiles(root: string, query: string, limit = 300): Promise<FoundFiles> {
+  return invoke<FoundFiles>('find_files', { root, query, limit })
+}
+
+export async function pickFolder(): Promise<string | null> {
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const p = await open({ multiple: false, directory: true })
+  return typeof p === 'string' ? p : null
+}

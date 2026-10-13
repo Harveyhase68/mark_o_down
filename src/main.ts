@@ -22,6 +22,7 @@ import { createGuard, sessionEnabled, setSessionEnabled } from './guard'
 import { languageName, refreshSpell, setSpellEnabled, showLanguageMenu, spellEnabled, spellLanguage } from './editor/spell'
 import { extendedSyntaxOn, setExtendedSyntax } from './md/markdown'
 import { store } from './editor/dom'
+import { createFileTree } from './filetree'
 
 // the Markdown dialect: extended syntax (Pandoc/Obsidian) on by default
 const EXTENDED_KEY = 'mod-extended'
@@ -67,6 +68,8 @@ let doc!: DocState
 let sourceVisible = false
 let elevatedWarning = false
 let flashMessage: string | null = null
+/** the folder tree (only in the app) */
+let fileTree: ReturnType<typeof createFileTree> | null = null
 
 const hooks: EditorHooks = {
   // an imported (unsaved) document resolves images from where it came from
@@ -123,6 +126,7 @@ const guard = createGuard({
 
 const editor = createEditor(editorEl, hooks)
 const view = editor.view
+if (host.isTauri) fileTree = createFileTree($('#filetree'), $('#tree-resizer'), { open: (p) => void openFromTree(p), focusEditor: () => view.focus() })
 let toolbar = createToolbar($('#toolbar'), view, toolbarActions())
 
 function toolbarActions(): Parameters<typeof createToolbar>[2] {
@@ -144,6 +148,7 @@ function toolbarActions(): Parameters<typeof createToolbar>[2] {
   find: () => findBar.open(false),
   toggleSource,
   sourceVisible: () => sourceVisible,
+  tree: fileTree ? { visible: () => fileTree!.visible(), toggle: () => fileTree!.toggle() } : undefined,
   session: host.isTauri ? { enabled: sessionEnabled, toggle: () => setSessionEnabled(!sessionEnabled()) } : undefined,
   extended: { enabled: extendedSyntaxOn, toggle: () => switchExtendedSyntax(!extendedSyntaxOn()) },
   spell: {
@@ -189,6 +194,7 @@ function scheduleUpdate() {
 let lastTitle = ''
 function updateChrome() {
   const title = `${isDirty() ? '● ' : ''}${docName()} — Mark O Down`
+  void fileTree?.setCurrent(doc.path)
   if (title !== lastTitle) void host.setWindowTitle((lastTitle = title))
 
   const text = view.state.doc.textContent
@@ -322,6 +328,18 @@ async function followLink(href: string, at?: number) {
   history.back.push(from)
   history.forward.length = 0
   if (target.fragment) jumpToAnchor(target.fragment, false)
+}
+
+/** A file clicked in the folder tree (Alt+← comes back, like after a link). */
+async function openFromTree(path: string) {
+  if (samePath(path, doc.path)) return view.focus()
+  const from = here()
+  if (!(await confirmDiscard())) return
+  await openPath(path)
+  if (!samePath(doc.path, path)) return
+  history.back.push(from)
+  history.forward.length = 0
+  view.focus()
 }
 
 /** Put the heading (or HTML anchor) at the top of the window and mark it briefly. */
@@ -858,6 +876,7 @@ window.addEventListener(
     else if (k === 'p' && !e.shiftKey) run(() => void printDocument())
     else if (k === 'e' && e.shiftKey) run(() => void exportHtml())
     else if (k === 'm' && e.shiftKey) run(toggleSource)
+    else if (k === 'b' && e.shiftKey && fileTree) run(() => (fileTree!.toggle(), toolbar.update()))
     else if (k === 'f' && !e.shiftKey) run(() => findBar.open(false))
     else if (k === 'h' && !e.shiftKey) run(() => findBar.open(true))
   },
@@ -948,6 +967,7 @@ onLangChange(() => {
   findBar.relabel()
   editor.redrawNodeViews() // tooltips of raw elements
   zoom.relabel()
+  fileTree?.relabel()
   applyStaticTexts()
   lastTitle = ''
   updateChrome()

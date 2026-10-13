@@ -44,6 +44,7 @@ body {
 body {
   display: grid;
   grid-template-rows: auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr); /* never wider than the window */
   background: var(--bg);
   color: var(--text);
   font: 15px/1.6 var(--font);
@@ -118,9 +119,17 @@ body {
 
 /* ---------------------------------------------------------------- workspace */
 
+/* the folder tree (left or right, full height between toolbar and status bar) + the editor */
+#middle {
+  display: flex;
+  min-height: 0;
+}
+
 #workspace {
   display: grid;
+  flex: 1;
   grid-template-columns: 1fr;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -1894,4 +1903,238 @@ body.source-pending #scroller {
   color: #cf222e;
   font: 12px var(--mono);
   text-align: left;
+}
+
+/* ---------------------------------------------------------------- folder tree */
+
+#filetree {
+  display: none;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 70vw;
+  background: var(--paper);
+  font-size: 13px;
+  user-select: none;
+}
+
+#tree-resizer {
+  display: none;
+  flex: none;
+  width: 5px;
+  margin: 0 -2px;
+  z-index: 2;
+  cursor: col-resize;
+  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
+  background: var(--border);
+  background-clip: content-box;
+}
+
+#tree-resizer:hover,
+body.tree-resizing #tree-resizer {
+  background: var(--accent);
+  background-clip: content-box;
+}
+
+body.tree-resizing {
+  cursor: col-resize;
+}
+
+body.tree-resizing * {
+  user-select: none;
+}
+
+body.show-tree #filetree {
+  display: flex;
+}
+
+body.show-tree #tree-resizer {
+  display: block;
+}
+
+body.tree-right #filetree {
+  order: 3;
+}
+
+body.tree-right #tree-resizer {
+  order: 2;
+}
+
+.ft-head {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ft-drive {
+  flex: none;
+  width: 46px;
+  padding: 3px 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.ft-search {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.ft-search:focus,
+.ft-drive:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.ft-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ft-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.ft-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ft-path {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ft-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ft-list {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0 24px;
+  outline: none;
+}
+
+.ft-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px 0 calc(6px + var(--depth, 0) * 14px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ft-row:hover {
+  background: color-mix(in srgb, var(--accent-soft) 60%, transparent);
+}
+
+.ft-row.sel {
+  background: var(--accent-soft);
+}
+
+.ft-list:focus .ft-row.sel {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* the open document */
+.ft-row.current .ft-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ft-twisty {
+  display: inline-flex;
+  flex: none;
+  width: 14px;
+  color: var(--muted);
+  transition: transform 0.1s;
+}
+
+.ft-twisty.open {
+  transform: rotate(90deg);
+}
+
+.ft-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+.ft-row.dir .ft-icon {
+  color: #d29922;
+}
+
+.ft-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ft-name mark {
+  border-radius: 2px;
+  background: #fff1a8;
+  color: inherit;
+}
+
+.ft-where {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.ft-note {
+  padding: 10px 12px;
+  color: var(--muted);
+  white-space: normal;
+}
+
+.ft-pick {
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ft-name mark {
+    background: #6b5a12;
+  }
 }

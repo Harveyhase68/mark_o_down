@@ -24,7 +24,7 @@ objc2-foundation = "0.3"
 tauri-build = { version = "2.5.0", features = [] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Threading"] }
 # "Save as PDF" (WebView2 PrintToPdf) – the versions Tauri's webview (wry) uses
 webview2-com = "0.39"
 windows = { version = "0.62", features = ["Win32_Globalization", "Win32_System_Com"] }

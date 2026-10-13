@@ -71,6 +71,7 @@ const ICONS: Record<string, string> = {
   delTable: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/><path d="m13 13 6 6M19 13l-6 6" stroke-width="2.4"/>'),
   emoji: svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/>'),
   find: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/>'),
+  tree: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>'),
   source: svg('<path d="M14 4 10 20M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
 }
 
@@ -112,6 +113,8 @@ export interface ToolbarActions {
   find: () => void
   toggleSource: () => void
   sourceVisible: () => boolean
+  /** the folder tree (only in the app) */
+  tree?: { visible: () => boolean; toggle: () => void }
   /** "Remember session" (only in the app, not in the browser preview). */
   session?: { enabled: () => boolean; toggle: () => void }
   /** Spell checking: on/off, the language of the texts (a menu below the help button). */
@@ -141,6 +144,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
 
   const groups: (Group | 'heading')[] = ([
     [
+      ...(actions.tree ? [{ id: 'tree', title: tip('tb.tree', 'Ctrl+Shift+B'), action: () => actions.tree!.toggle(), active: () => actions.tree!.visible() }] : []),
       { id: 'open', title: tip('tb.open', 'Ctrl+O'), menu: () => actions.openMenu() },
       {
         id: 'save',
@@ -301,7 +305,7 @@ export function createToolbar(el: HTMLElement, view: EditorView, actions: Toolba
           if (def.id.startsWith('align') && def.active?.(view.state)) alignColumn(null)(view.state, view.dispatch)
           else if (def.cmd) def.cmd(view.state, view.dispatch, view)
           else def.action!(view)
-          if (def.id !== 'source') view.focus()
+          if (def.id !== 'source' && def.id !== 'tree') view.focus()
           update()
         }
         g.append(btn)
