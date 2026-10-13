@@ -8,7 +8,7 @@ import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import type { Element, Root as HRoot } from 'hast'
 import type { HLJSApi } from 'highlight.js'
-import { extendedSyntaxOn, markdownPlugins } from './markdown'
+import { dialectKey, markdownPlugins } from './markdown'
 import { defListHastHandlers } from 'mdast-util-definition-list'
 import type { MathRenderer } from './mathRender'
 import { slugify } from './anchors'
@@ -89,12 +89,12 @@ const processor = (opts: RenderOptions = {}) =>
     .use(rehypeHeadingIds)
     .use(rehypeCodeAndMath, opts)
     .use(rehypeStringify, { allowDangerousHtml: true })
-const plain = new Map<boolean, ReturnType<typeof processor>>()
+const plain = new Map<string, ReturnType<typeof processor>>()
 
 /** HTML fragment of the document body. */
 export function renderHtml(markdown: string, opts?: RenderOptions): string {
-  let p = plain.get(extendedSyntaxOn())
-  if (!p) plain.set(extendedSyntaxOn(), (p = processor()))
+  let p = plain.get(dialectKey())
+  if (!p) plain.set(dialectKey(), (p = processor()))
   return String((opts?.highlight || opts?.math || opts?.mermaid ? processor(opts) : p).processSync(markdown)).trim()
 }
 

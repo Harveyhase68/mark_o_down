@@ -66,6 +66,15 @@
         "description": "Markdown document",
         "role": "Editor",
         "mimeType": "text/markdown"
+      },
+      {
+        "ext": [
+          "modw"
+        ],
+        "name": "MarkODownWorkspace",
+        "description": "Mark O Down workspace",
+        "role": "Editor",
+        "mimeType": "application/x-markodown-workspace"
       }
     ],
     "windows": {

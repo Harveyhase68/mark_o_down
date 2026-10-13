@@ -2138,3 +2138,204 @@ body.tree-right #tree-resizer {
     background: #6b5a12;
   }
 }
+
+/* ---------------------------------------------------------------- workspaces */
+
+.ft-folder.workspace::before {
+  content: '◆ ';
+  color: var(--accent);
+}
+
+.dialog.ws-window {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: min(720px, 100%);
+}
+
+.ws-window section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: 14px;
+}
+
+.ws-window section:first-of-type {
+  flex: 0 1 auto;
+  max-height: 40%;
+}
+
+.ws-window section:last-of-type {
+  flex: 1 1 auto;
+}
+
+.ws-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ws-head h3 {
+  margin: 0 auto 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ws-sort {
+  display: flex;
+  gap: 4px;
+}
+
+.dialog .ws-sort button {
+  min-width: 78px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.dialog .ws-sort button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ws-list {
+  overflow: auto;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.ws-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ws-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-row:hover {
+  background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
+}
+
+.dialog .ws-open {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.dialog .ws-open:disabled {
+  cursor: default;
+}
+
+.ws-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-path {
+  overflow: hidden;
+  /* long paths: cut at the start, the folder names at the end matter */
+  direction: rtl;
+  text-align: left;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-row.current .ws-name::after {
+  content: ' ◆';
+  color: var(--accent);
+}
+
+.ws-row.missing .ws-name,
+.ws-row.missing .ws-date {
+  opacity: 0.5;
+}
+
+.ws-row.missing .ws-path {
+  color: var(--danger);
+}
+
+.ws-date {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dialog .ws-act {
+  flex: none;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.dialog .ws-link.on {
+  border-color: #d29922;
+  color: #b07d10;
+}
+
+.ws-empty {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* new workspace / settings */
+.dialog .extra.ws-form {
+  display: grid;
+  gap: 6px;
+}
+
+.ws-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ws-folder {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ws-folder-path {
+  overflow: hidden;
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog label.ws-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0 0;
+  color: var(--text);
+}
+
+.dialog label.ws-check input {
+  width: auto;
+}
+
+.ws-file {
+  color: var(--muted);
+  font-size: 12px;
+  word-break: break-all;
+}

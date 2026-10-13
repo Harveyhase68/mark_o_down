@@ -233,6 +233,7 @@ fn main() {
             files::list_roots,
             files::path_kind,
             files::find_files,
+            files::markdown_files,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

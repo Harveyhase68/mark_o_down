@@ -14,6 +14,8 @@ export interface FileTreeHooks {
   open: (path: string) => void
   /** back to the text */
   focusEditor: () => void
+  /** "New workspace here …" (the folder shown) */
+  newWorkspace?: (folder: string) => void
 }
 
 interface Settings {
@@ -117,6 +119,8 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
   let results: Row[] | null = null
   let note: string | null = null
   let searchTimer = 0
+  /** the open workspace: its folder is shown with its name */
+  let workspace: { name: string; root: string } | null = null
 
   // ---------------------------------------------------------------- DOM
 
@@ -266,8 +270,10 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
 
   function render() {
     texts()
-    folder.textContent = root ? (isRoot(root.path) ? root.path : host.basename(root.path.replace(/[\\/]+$/, ''))) : ''
-    folder.title = root?.path ?? ''
+    const inWorkspace = !!root && !!workspace && samePath(root.path, workspace.root)
+    folder.textContent = inWorkspace ? workspace!.name : root ? (isRoot(root.path) ? root.path : host.basename(root.path.replace(/[\\/]+$/, ''))) : ''
+    folder.classList.toggle('workspace', inWorkspace)
+    folder.title = inWorkspace ? `${t('tree.workspace')}: ${workspace!.name}\n${root!.path}` : (root?.path ?? '')
     up.disabled = !root || parentDir(root.path) === null
     renderDrives()
 
@@ -473,9 +479,11 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
     const doc = current
     return [
       { label: t('tree.pick'), run: () => void pickRoot() },
+      ...(workspace ? [{ label: t('tree.wsRoot', { name: workspace.name }), run: () => void setRoot(workspace!.root) }] : []),
       { label: t('tree.docFolder'), disabled: !doc, run: () => doc && void setRoot(parentDir(doc)).then(() => reveal(doc)) },
       { label: t('tree.refresh'), shortcut: 'F5', disabled: !root, run: () => void refresh() },
       'separator',
+      ...(hooks.newWorkspace ? [{ label: t('tree.newWorkspace'), disabled: !root, run: () => root && hooks.newWorkspace!(root.path) }, 'separator' as const] : []),
       { label: `${settings.side === 'left' ? '✓' : ' '}  ${t('tree.left')}`, run: () => setSide('left') },
       { label: `${settings.side === 'right' ? '✓' : ' '}  ${t('tree.right')}`, run: () => setSide('right') },
       { label: `   ${t('tree.hide')}`, shortcut: kbd('Ctrl+Shift+B'), run: () => setVisible(false) },
@@ -640,6 +648,17 @@ export function createFileTree(pane: HTMLElement, resizer: HTMLElement, hooks: F
       await reveal(path)
     },
     visible: () => settings.visible,
+    /** the folder shown */
+    root: () => root?.path ?? null,
+    /** a workspace was opened (its folder becomes the tree) or closed (null) */
+    async setWorkspace(ws: { name: string; root: string } | null) {
+      await ready
+      workspace = ws
+      if (ws && (!root || !samePath(root.path, ws.root))) {
+        await setRoot(ws.root)
+        if (current) await reveal(current)
+      } else render()
+    },
     toggle: () => setVisible(!settings.visible),
     /** the language changed */
     relabel: () => render(),

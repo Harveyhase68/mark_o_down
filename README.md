@@ -40,6 +40,12 @@ clean Markdown.
   path (file or folder, also with quotes from *Copy as path*) goes straight there. Arrow keys,
   `Enter`, type the first letters to jump, double-click a folder to show only it, `Backspace` /
   ↑ for the parent folder, a small drive selector on Windows.
+- **Workspaces** (`.modw`) for a folder of Markdown documents: *Open → New workspace …* saves
+  `<Name>.modw` in the folder (JSON: `version`, `name`, `root` – the documents' folder relative
+  to the file, `../` allowed – and `wikiLinks`). Opening one (also by double-click in Explorer)
+  shows its folder in the tree and finds `[[Link]]` by name anywhere in it, like Obsidian.
+  *Open → Open workspace …* lists every workspace Mark O Down has seen, favourites on top,
+  each list sortable by name or last opened. The last workspace is opened again at start.
 - **Mermaid diagrams** like on GitHub: ` ```mermaid ` blocks are drawn (flowcharts, sequence,
   class, state, Gantt, pie … diagrams); click a diagram to edit its source below it. Also in the
   HTML export and print. Mermaid is loaded only when a document has a diagram.
@@ -221,6 +227,14 @@ checks that full re-serialization renders identical HTML.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+- **Workspaces** (`.modw`): a file in the documents' folder with its name, the documents' folder
+  (`root`, relative – `../docs` works too), whether `[[wiki links]]` are used (independent of the
+  extended syntax) and a `version`. *Open → New workspace …* (or *New workspace here …* in the
+  folder tree) creates one, *Open workspace …* shows all workspaces ever opened – favourites on
+  top (*Link* / ✕), both lists sortable by name or date (click again: reversed), missing files
+  marked and removable. In a workspace `[[Link]]` is also found by name in any subfolder (the
+  nearest wins), the window title and the tree show its name, *Workspace settings …* changes it.
+  The installer can associate `.modw` with Mark O Down.
 - **Folder tree** (`Ctrl+Shift+B`): folders and Markdown files beside the editor, left or right,
   resizable, can be hidden – the last folder is remembered. Search by part of a name (only in the
   current folder and below, not the whole disk), paste a path to go there, keyboard navigation

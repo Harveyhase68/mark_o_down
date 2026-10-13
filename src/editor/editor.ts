@@ -48,8 +48,10 @@ export interface EditorHooks {
   docPath: () => string | null
   /** Let the user pick a local image; returns a Markdown path or null. */
   pickImage?: () => Promise<string | null>
-  /** Ctrl+click on a link (see main.ts followLink) */
-  followLink: (href: string, at: number) => void
+  /** Ctrl+click on a link (see main.ts followLink); `wiki`: a [[wiki link]] */
+  followLink: (href: string, at: number, wiki: boolean) => void
+  /** [[Link]] not next to the document: the file found by name in the workspace (absolute) */
+  findWiki?: (target: string) => string | null
   /** Ctrl+V of image data (screenshot …): store it next to the document and insert it. */
   pasteImage: (view: EditorView, image: File) => void
   onChange: (view: EditorView) => void
@@ -235,7 +237,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
             const pos = view.posAtDOM(a, 0)
             const mark = view.state.doc.resolve(pos).marks().find((m) => m.type === K.link) ?? K.link.isInSet(view.state.doc.nodeAt(pos)?.marks ?? [])
             const href = (a.dataset.wikilink !== undefined ? null : mark?.attrs.href) || a.getAttribute('href')
-            if (href) hooks.followLink(href, pos)
+            if (href) hooks.followLink(href, pos, a.dataset.wikilink !== undefined)
             return true
           }
           return false
@@ -275,7 +277,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
   // a new nodeViews object makes ProseMirror redraw all node views
   const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView, mermaid_block: mermaidBlockView, wikilink: wikiLinkView })
   const redraw = () => view.setProps({ nodeViews: nodeViews() })
-  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), mermaidPlugin(redraw), spellPlugin(), wikiLinkPlugin(hooks.docPath), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
+  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), mermaidPlugin(redraw), spellPlugin(), wikiLinkPlugin(hooks.docPath, (p) => hooks.findWiki?.(p) ?? null), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
   const stateFor = (doc: PMNode) => EditorState.create({ schema, doc, plugins })
 
   const view = new EditorView(mount, {

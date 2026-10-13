@@ -7,7 +7,7 @@ import { Plugin, PluginKey, type EditorState } from 'prosemirror-state'
 import { Decoration, DecorationSet, type EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import type { Node as PMNode } from 'prosemirror-model'
 import { schema } from '../md/schema'
-import { extendedSyntaxOn } from '../md/markdown'
+import { wikiLinksOn } from '../md/markdown'
 import { parseWiki, wikiDisplay, wikiFile, wikiHref, wikiRaw } from '../md/wikilink'
 import { findAnchor } from '../md/anchors'
 import * as host from '../platform'
@@ -21,7 +21,7 @@ const inTable = (parent: PMNode) => /cell/.test(parent.type.spec.tableRole ?? ''
 /** Typing the closing `]]` of `[[Link]]` turns it into a wiki link (extended syntax only). */
 export const wikiLinkInputRule = new InputRule(/\[\[([^[\]\n]+)\]\]$/, (state, match, start, end) => {
   const $start = state.doc.resolve(start)
-  if (!extendedSyntaxOn() || $start.parent.type.spec.code) return null
+  if (!wikiLinksOn() || $start.parent.type.spec.code) return null
   // in a table cell the `|` before the text must be `\|`, else it splits the cell
   const { path, heading, alias } = parseWiki(match[1])
   const raw = inTable($start.parent) ? wikiRaw(heading ? `${path}#${heading}` : path, alias, true) : match[1]
@@ -76,6 +76,8 @@ async function editWikiLink(view: EditorView, pos: number) {
 // ------------------------------------------------------------------ targets that do not exist
 
 const exists = new Map<string, boolean>() // absolute path → there?
+/** Sent on `window` when the files a wiki link can find by name changed. */
+export const WIKI_INDEX_EVENT = 'mod-wiki-index'
 const key = new PluginKey<DecorationSet>('wikilinks')
 
 /** The file a wiki link means, from the document's folder (`/…`: as written). */
@@ -85,7 +87,7 @@ function resolve(docPath: string | null, path: string): string | null {
   return docPath ? host.joinPath(host.dirname(docPath), file) : null
 }
 
-function decorations(state: EditorState, docPath: string | null, wanted: Set<string>): DecorationSet {
+function decorations(state: EditorState, docPath: string | null, wanted: Set<string>, byName: (path: string) => string | null): DecorationSet {
   const decos: Decoration[] = []
   state.doc.descendants((node: PMNode, pos: number) => {
     if (node.type !== S.wikilink) return true
@@ -97,7 +99,8 @@ function decorations(state: EditorState, docPath: string | null, wanted: Set<str
       if (file) {
         const there = exists.get(file)
         if (there === undefined) wanted.add(file)
-        missing = there === false
+        // not next to the document: maybe somewhere in the workspace (by name)
+        missing = there === false && !byName(path)
       }
     }
     if (missing) decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wikilink-missing' }))
@@ -106,15 +109,15 @@ function decorations(state: EditorState, docPath: string | null, wanted: Set<str
   return DecorationSet.create(state.doc, decos)
 }
 
-/** `docPath`: the open document (relative targets are looked up from its folder). */
-export function wikiLinkPlugin(docPath: () => string | null) {
+/** `docPath`: the open document (relative targets are looked up from its folder); `byName`: in the workspace. */
+export function wikiLinkPlugin(docPath: () => string | null, byName: (path: string) => string | null) {
   const wanted = new Set<string>()
   let timer = 0
   return new Plugin<DecorationSet>({
     key,
     state: {
-      init: (_, state) => decorations(state, docPath(), wanted),
-      apply: (tr, old, _o, state) => (tr.docChanged || tr.getMeta(key) ? decorations(state, docPath(), wanted) : old.map(tr.mapping, tr.doc)),
+      init: (_, state) => decorations(state, docPath(), wanted, byName),
+      apply: (tr, old, _o, state) => (tr.docChanged || tr.getMeta(key) ? decorations(state, docPath(), wanted, byName) : old.map(tr.mapping, tr.doc)),
     },
     props: { decorations: (state) => key.getState(state) },
     view(view) {
@@ -136,8 +139,17 @@ export function wikiLinkPlugin(docPath: () => string | null) {
         refresh()
       }
       window.addEventListener('focus', onFocus)
+      // the workspace's file list changed (see main.ts)
+      window.addEventListener(WIKI_INDEX_EVENT, refresh)
       check()
-      return { update: check, destroy: () => (clearTimeout(timer), window.removeEventListener('focus', onFocus)) }
+      return {
+        update: check,
+        destroy: () => {
+          clearTimeout(timer)
+          window.removeEventListener('focus', onFocus)
+          window.removeEventListener(WIKI_INDEX_EVENT, refresh)
+        },
+      }
     },
   })
 }

@@ -176,11 +176,13 @@ const wikiLinkConstruct: Construct = {
 
 const isLineEnding = (code: Code) => code !== null && code < -2
 
-/** micromark syntax: the three delimiters, wiki links and definition lists. */
+/** micromark syntax: wiki links (on their own: a workspace can switch them separately). */
+export const wikiSyntax = (): Extension => ({ text: { [LEFT_BRACKET]: wikiLinkConstruct } }) as Extension
+
+/** micromark syntax: the three delimiters and definition lists. */
 export function extendedSyntax(): Extension[] {
   const constructs = DELIMITERS.map(delimiterConstruct)
   return [
-    { text: { [LEFT_BRACKET]: wikiLinkConstruct } } as Extension,
     {
       text: Object.fromEntries(DELIMITERS.map((d, i) => [d.marker, constructs[i]])),
       insideSpan: { null: constructs },
@@ -202,19 +204,28 @@ export function extendedFromMarkdown(): FromMarkdownExtension[] {
       this.exit(token)
     }
   }
-  // [[…]]: an mdast `wikiLink`; rendered as <a href="Link.md#…">Text</a>
-  enter.wikiLink = function (token) {
-    this.enter({ type: 'wikiLink', value: '' } as never, token)
-  }
-  exit.wikiLinkValue = function (token) {
-    ;(this.stack[this.stack.length - 1] as unknown as WikiLink).value = this.sliceSerialize(token)
-  }
-  exit.wikiLink = function (token) {
-    const node = this.stack[this.stack.length - 1] as unknown as WikiLink
-    node.data = { hName: 'a', hProperties: { href: wikiHref(node.value), className: ['wikilink'] }, hChildren: [{ type: 'text', value: wikiDisplay(node.value) }] }
-    this.exit(token)
-  }
   return [{ enter, exit }, defListFromMarkdown as FromMarkdownExtension]
+}
+
+/** mdast: [[…]] becomes a `wikiLink`, rendered as <a href="Link.md#…">Text</a>. */
+export function wikiFromMarkdown(): FromMarkdownExtension {
+  return {
+    enter: {
+      wikiLink(token) {
+        this.enter({ type: 'wikiLink', value: '' } as never, token)
+      },
+    },
+    exit: {
+      wikiLinkValue(token) {
+        ;(this.stack[this.stack.length - 1] as unknown as WikiLink).value = this.sliceSerialize(token)
+      },
+      wikiLink(token) {
+        const node = this.stack[this.stack.length - 1] as unknown as WikiLink
+        node.data = { hName: 'a', hProperties: { href: wikiHref(node.value), className: ['wikilink'] }, hChildren: [{ type: 'text', value: wikiDisplay(node.value) }] }
+        this.exit(token)
+      },
+    },
+  }
 }
 
 /** Serialize the delimiters; content the Markdown form can't hold (spaces in ^…^) gets the HTML tag. */

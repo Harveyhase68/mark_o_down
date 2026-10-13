@@ -20,7 +20,10 @@ import { imageExtension, pastedImageStem } from './editor/paste'
 import * as host from './platform'
 import { createGuard, sessionEnabled, setSessionEnabled } from './guard'
 import { languageName, refreshSpell, setSpellEnabled, showLanguageMenu, spellEnabled, spellLanguage } from './editor/spell'
-import { extendedSyntaxOn, setExtendedSyntax } from './md/markdown'
+import { extendedSyntaxOn, setExtendedSyntax, setWikiLinks, wikiLinksOn } from './md/markdown'
+import { findByName, isWorkspaceFile, readWorkspace, relativePath, rememberWorkspace, writeWorkspace, WORKSPACE_VERSION, type Workspace } from './workspace'
+import { openWorkspaceWindow, safeFileName, workspaceForm } from './workspaceUi'
+import { WIKI_INDEX_EVENT } from './editor/wikilinks'
 import { store } from './editor/dom'
 import { createFileTree } from './filetree'
 
@@ -81,7 +84,8 @@ const hooks: EditorHooks = {
         return file ? host.relativeImagePath(file, doc.path) : null
       }
     : undefined,
-  followLink: (href, at) => void followLink(href, at),
+  followLink: (href, at, wiki) => void followLink(href, at, wiki),
+  findWiki: (target) => findWiki(target),
   pasteImage: (v, image) => void pasteImage(v, image),
   onChange: () => {
     scheduleUpdate()
@@ -126,7 +130,11 @@ const guard = createGuard({
 
 const editor = createEditor(editorEl, hooks)
 const view = editor.view
-if (host.isTauri) fileTree = createFileTree($('#filetree'), $('#tree-resizer'), { open: (p) => void openFromTree(p), focusEditor: () => view.focus() })
+if (host.isTauri) fileTree = createFileTree($('#filetree'), $('#tree-resizer'), {
+    open: (p) => void openFromTree(p),
+    focusEditor: () => view.focus(),
+    newWorkspace: (folder) => void newWorkspace(folder),
+  })
 let toolbar = createToolbar($('#toolbar'), view, toolbarActions())
 
 function toolbarActions(): Parameters<typeof createToolbar>[2] {
@@ -193,7 +201,7 @@ function scheduleUpdate() {
 
 let lastTitle = ''
 function updateChrome() {
-  const title = `${isDirty() ? '● ' : ''}${docName()} — Mark O Down`
+  const title = `${isDirty() ? '● ' : ''}${docName()}${workspace ? ` — ${workspace.data.name}` : ''} — Mark O Down`
   void fileTree?.setCurrent(doc.path)
   if (title !== lastTitle) void host.setWindowTitle((lastTitle = title))
 
@@ -304,16 +312,21 @@ function remember(at?: number) {
   history.forward.length = 0
 }
 
-async function followLink(href: string, at?: number) {
+async function followLink(href: string, at?: number, wiki = false) {
   const target = parseLinkTarget(href)
   if (!target) return
   if (target.kind === 'external') return void host.openExternal(target.url)
   if (target.kind === 'anchor') return jumpToAnchor(target.fragment, true, at)
-  if (!doc.path && !host.isFileSystemAbsolute(target.path)) return flash(t('link.needsSave'))
+  // [[Link]] that is not next to the document: found by name in the workspace
+  const byName = wiki ? findWiki(target.path) : null
+  if (!doc.path && !host.isFileSystemAbsolute(target.path) && !byName) return flash(t('link.needsSave'))
   // like images: relative to the document, `/…` to the repository root (GitHub)
-  const path = host.isFileSystemAbsolute(target.path)
+  let path = host.isFileSystemAbsolute(target.path)
     ? target.path
-    : host.joinPath(target.path.startsWith('/') && doc.root ? doc.root : host.dirname(doc.path!), target.path)
+    : doc.path
+      ? host.joinPath(target.path.startsWith('/') && doc.root ? doc.root : host.dirname(doc.path), target.path)
+      : byName!
+  if (byName && !samePath(path, byName) && (await host.fileHash(path).catch(() => null)) === null) path = byName
   if (samePath(path, doc.path)) return target.fragment ? jumpToAnchor(target.fragment, true, at) : undefined
   // a broken link: a note in the status bar (not a dialog – it is just a link)
   if ((await host.fileHash(path).catch(() => null)) === null) return flash(t('link.notFound', { name: target.path }), true)
@@ -479,12 +492,19 @@ function showLint() {
  * (its text stays the same; unsaved changes stay unsaved). Undo history starts anew.
  */
 function switchExtendedSyntax(on: boolean) {
+  reparse(() => {
+    setExtendedSyntax(on)
+    store.set(EXTENDED_KEY, on)
+  })
+}
+
+/** The dialect changes (`change`): the open document is read again in the new one. */
+function reparse(change: () => void) {
   const md = markdown() // still in the current dialect
   const dirty = isDirty()
   const cursor = view.state.selection.head
   const scroll = $('#scroller').scrollTop
-  setExtendedSyntax(on)
-  store.set(EXTENDED_KEY, on)
+  change()
   setDocument(md, { path: doc.path, eol: doc.eol, bom: doc.bom, mixedEol: doc.mixedEol, hash: doc.diskHash, root: doc.root, suggested: doc.suggested })
   if (dirty) doc.saved = null
   restorePosition(cursor, scroll)
@@ -566,6 +586,7 @@ function confirmDiscard(): Promise<boolean> {
 }
 
 async function openPath(path: string) {
+  if (isWorkspaceFile(path)) return openWorkspace(path)
   try {
     const f = await host.readFile(path)
     if (host.isHtmlFile(path)) return await importHtml(f)
@@ -733,6 +754,11 @@ async function rememberRecent(path: string) {
 function openMenuItems(): MenuItem[] {
   const items: MenuItem[] = [{ label: t('menu.open'), shortcut: kbd('Ctrl+O'), run: () => void openFile() }]
   if (!host.isTauri) return items
+  items.push('separator', { label: t('menu.wsOpen'), run: () => void showWorkspaces() }, { label: t('menu.wsNew'), run: () => void newWorkspace() })
+  if (workspace) {
+    const name = workspace.data.name
+    items.push({ label: t('menu.wsSettings', { name }), run: () => void workspaceSettings() }, { label: t('menu.wsClose', { name }), run: () => void closeWorkspace() })
+  }
   items.push('separator')
   if (!recentCache.length) items.push({ label: t('menu.recentEmpty'), disabled: true, run: () => {} })
   for (const p of recentCache) items.push({ label: host.basename(p), shortcut: shortDir(p), title: p, run: () => void openRecent(p) })
@@ -754,6 +780,129 @@ async function openRecent(path: string) {
     return
   }
   await openPath(path)
+}
+
+// ------------------------------------------------------------------ workspaces
+
+const WORKSPACE_KEY = 'mod-workspace'
+let workspace: Workspace | null = null
+/** the workspace's Markdown files (relative, `/`): [[Link]] is found by name in them */
+let wikiIndex: string[] = []
+let indexedAt = 0
+
+/** [[Link]] not next to the document: the nearest file of that name in the workspace. */
+function findWiki(target: string): string | null {
+  if (!workspace) return null
+  const rel = findByName(wikiIndex, target)
+  return rel ? host.joinPath(workspace.root, rel) : null
+}
+
+async function refreshWikiIndex(force = false) {
+  if (!workspace || (!force && Date.now() - indexedAt < 5000)) return
+  const ws = workspace
+  indexedAt = Date.now()
+  const files = await host.markdownFiles(ws.root).catch(() => [] as string[])
+  if (workspace !== ws) return
+  wikiIndex = files
+  window.dispatchEvent(new Event(WIKI_INDEX_EVENT))
+}
+// files come and go while the window is in the background
+window.addEventListener('focus', () => void refreshWikiIndex())
+
+/** Open (`ws`) or close (null) a workspace: tree, wiki links, title. */
+async function useWorkspace(ws: Workspace | null) {
+  workspace = ws
+  wikiIndex = []
+  const wiki = ws ? ws.data.wikiLinks : null
+  // wiki links on/off changes how the open document is read
+  if ((wiki ?? extendedSyntaxOn()) !== wikiLinksOn()) reparse(() => setWikiLinks(wiki))
+  else setWikiLinks(wiki)
+  store.set(WORKSPACE_KEY, ws?.path ?? null)
+  await fileTree?.setWorkspace(ws ? { name: ws.data.name, root: ws.root } : null)
+  if (ws) await refreshWikiIndex(true)
+  else window.dispatchEvent(new Event(WIKI_INDEX_EVENT))
+  lastTitle = ''
+  updateChrome()
+}
+
+/** `quiet`: at start (the last workspace) – no messages, a missing one is forgotten. */
+async function openWorkspace(path: string, quiet = false) {
+  let ws: Workspace
+  try {
+    ws = await readWorkspace(path)
+  } catch (e) {
+    if (quiet) store.set(WORKSPACE_KEY, null)
+    else await host.showError(t('err.workspace', { error: String(e) }))
+    return
+  }
+  await useWorkspace(ws)
+  await rememberWorkspace(ws)
+  if (quiet) return
+  if (fileTree && !fileTree.visible()) {
+    fileTree.toggle()
+    toolbar.update()
+  }
+  if (ws.data.version > WORKSPACE_VERSION) flash(t('ws.newer'), true)
+  else flash(t('ws.openedFlash', { name: ws.data.name }))
+}
+
+async function closeWorkspace() {
+  await useWorkspace(null)
+  flash(t('ws.closed'))
+}
+
+/** A new .modw in `folder` (the tree's folder, else the document's, else one to pick). */
+async function newWorkspace(folder?: string) {
+  const start = folder ?? fileTree?.root() ?? (doc.path ? host.dirname(doc.path) : null) ?? (await host.pickFolder().catch(() => null))
+  if (!start) return
+  const suggested = host.basename(start.replace(/[\\/]+$/, '')) || 'Workspace'
+  const form = await workspaceForm({ name: suggested, folder: start, wikiLinks: wikiLinksOn() }, true)
+  const name = form && safeFileName(form.name)
+  if (!form || !name) return
+  const path = host.joinPath(form.folder, `${name}.modw`)
+  if ((await host.fileHash(path).catch(() => null)) !== null) {
+    const choice = await askChoice(t('ws.newTitle'), t('ws.exists', { name: `${name}.modw` }), [
+      { label: t('common.cancel'), value: 'cancel' },
+      { label: t('ws.openExisting'), value: 'open', primary: true },
+    ])
+    if (choice === 'open') await openWorkspace(path)
+    return
+  }
+  try {
+    await writeWorkspace(path, { version: WORKSPACE_VERSION, name: form.name, root: '.', wikiLinks: form.wikiLinks })
+  } catch (e) {
+    return void (await host.showError(t('err.workspaceSave', { error: String(e) })))
+  }
+  await openWorkspace(path)
+}
+
+async function workspaceSettings() {
+  const ws = workspace
+  if (!ws) return
+  const form = await workspaceForm({ name: ws.data.name, folder: ws.root, wikiLinks: ws.data.wikiLinks }, false)
+  if (!form) return
+  try {
+    // read it again: keep what was changed meanwhile (or written by a newer version)
+    const fresh = await readWorkspace(ws.path).catch(() => ws)
+    const root = samePath(form.folder, ws.root) ? fresh.data.root : relativePath(host.dirname(ws.path), form.folder)
+    const saved = await writeWorkspace(ws.path, { ...fresh.data, name: form.name, wikiLinks: form.wikiLinks, root })
+    await useWorkspace(saved)
+    await rememberWorkspace(saved)
+  } catch (e) {
+    await host.showError(t('err.workspaceSave', { error: String(e) }))
+  }
+}
+
+function showWorkspaces() {
+  return openWorkspaceWindow({
+    current: workspace?.path ?? null,
+    open: (p) => void openWorkspace(p),
+    pickFile: async () => {
+      const p = await host.pickWorkspace().catch(() => null)
+      if (p) await openWorkspace(p)
+    },
+    create: () => void newWorkspace(),
+  })
 }
 
 // ------------------------------------------------------------------ HTML export, clipboard, print
@@ -907,7 +1056,8 @@ async function setupWindow(view: EditorView) {
   const { listen } = await import('@tauri-apps/api/event')
   await listen('open-file', async () => {
     const p = await host.initialFile()
-    if (p && (await confirmDiscard())) await openPath(p)
+    if (p && isWorkspaceFile(p)) await openWorkspace(p)
+    else if (p && (await confirmDiscard())) await openPath(p)
   })
 
   // Windows blocks drag & drop from Explorer into an elevated (admin) process.
@@ -920,6 +1070,8 @@ async function setupWindow(view: EditorView) {
   await getCurrentWebview().onDragDropEvent(async (e) => {
     if (e.payload.type !== 'drop') return
     const paths = e.payload.paths
+    const ws = paths.find(isWorkspaceFile)
+    if (ws) return void (await openWorkspace(ws))
     const md = paths.find((p) => host.isMarkdownFile(p) || host.isHtmlFile(p))
     if (md) {
       if (await confirmDiscard()) await openPath(md)
@@ -986,10 +1138,16 @@ requestAnimationFrame(() => {
 })
 void (async () => {
   const p = await host.initialFile()
-  if (p) await openPath(p)
+  if (p && isWorkspaceFile(p)) await openWorkspace(p)
+  else {
+    // the workspace of last time (before any document: it decides how [[…]] is read)
+    const last = store.get<string | null>(WORKSPACE_KEY, null)
+    if (last) await openWorkspace(last, true)
+    if (p) await openPath(p)
+  }
   // continue the last session, offer unsaved changes left by a crash
-  await guard.offerRecovery({ fileOpened: !!p })
+  await guard.offerRecovery({ fileOpened: !!p && !isWorkspaceFile(p) })
 })()
 
 // Dev hook for testing in the browser console / pane.
-if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty() } })
+if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), workspace: () => workspace, wikiIndex: () => wikiIndex } })

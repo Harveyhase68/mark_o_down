@@ -153,6 +153,18 @@ fn search(root: &Path, query: &str, limit: usize, time: Duration, cancelled: imp
     SearchResult { found, more: false, cancelled: false }
 }
 
+/// All Markdown files below `root` (relative, with `/`): a workspace finds `[[Link]]` by
+/// name with it. At most `limit` files and about three seconds.
+#[tauri::command]
+pub async fn markdown_files(root: String, limit: usize) -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let r = search(Path::new(&root), "", limit, Duration::from_secs(3), || false);
+        r.found.into_iter().filter(|f| !f.dir).map(|f| f.path).collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,6 +202,10 @@ mod tests {
         assert_eq!(r.found.len(), 1);
         let r = search(&root, "liz", 1, Duration::from_secs(5), || false);
         assert!(r.more && r.found.len() == 1);
+        // empty query: everything (what markdown_files lists)
+        let r = search(&root, "", 100, Duration::from_secs(5), || false);
+        let files: Vec<_> = r.found.iter().filter(|f| !f.dir).map(|f| f.path.as_str()).collect();
+        assert_eq!(files, ["Lizenz.md", "README.md", "docs/Blizzard.md", "docs/sub/lizzard.markdown"]);
         let _ = std::fs::remove_dir_all(root);
     }
 }

@@ -10,7 +10,7 @@ import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter'
 import { remarkMath } from './math'
-import { extendedFromMarkdown, extendedHandlers, extendedSyntax, extendedToMarkdown } from './extended'
+import { extendedFromMarkdown, extendedHandlers, extendedSyntax, extendedToMarkdown, wikiFromMarkdown, wikiSyntax } from './extended'
 import type { PluggableList, Processor } from 'unified'
 
 /** unified plugin: the extended syntax. */
@@ -18,6 +18,13 @@ function remarkExtended(this: Processor) {
   const data = this.data() as { micromarkExtensions?: unknown[]; fromMarkdownExtensions?: unknown[] }
   ;(data.micromarkExtensions ??= []).push(...extendedSyntax())
   ;(data.fromMarkdownExtensions ??= []).push(...extendedFromMarkdown())
+}
+
+/** unified plugin: [[wiki links]]. */
+function remarkWikiLinks(this: Processor) {
+  const data = this.data() as { micromarkExtensions?: unknown[]; fromMarkdownExtensions?: unknown[] }
+  ;(data.micromarkExtensions ??= []).push(wikiSyntax())
+  ;(data.fromMarkdownExtensions ??= []).push(wikiFromMarkdown())
 }
 import { mathToMarkdown } from 'mdast-util-math'
 import { toMarkdown, defaultHandlers, type Handle, type Options, type State } from 'mdast-util-to-markdown'
@@ -32,6 +39,11 @@ const FRONTMATTER = ['yaml', 'toml'] as const
 /** Extended syntax (^sup^, ~sub~, ==mark==, definition lists – see extended.ts); off = exactly GitHub. */
 let extended = true
 export const extendedSyntaxOn = () => extended
+/** [[wiki links]]: a workspace decides (its `wikiLinks`), else they come with the extended syntax. */
+let wiki: boolean | null = null
+export const wikiLinksOn = () => wiki ?? extended
+/** The dialect as a key (caches of processors). */
+export const dialectKey = () => `${extended ? 'x' : '-'}${wikiLinksOn() ? 'w' : '-'}`
 
 /** unified plugins of the Markdown dialect in use (also for the HTML export). */
 export function markdownPlugins(): PluggableList {
@@ -39,6 +51,7 @@ export function markdownPlugins(): PluggableList {
     [remarkGfm, { singleTilde: !extended }], // with the extended syntax, `~x~` is subscript
     remarkMath,
     [remarkFrontmatter, [...FRONTMATTER]],
+    ...(wikiLinksOn() ? [remarkWikiLinks] : []),
     ...(extended ? [remarkExtended] : []),
   ]
 }
@@ -48,6 +61,13 @@ let processor = unified().use(remarkParse).use(markdownPlugins())
 export function setExtendedSyntax(on: boolean) {
   if (on === extended) return
   extended = on
+  processor = unified().use(remarkParse).use(markdownPlugins())
+}
+
+/** Wiki links on/off regardless of the extended syntax (a workspace), null: as the extended syntax. */
+export function setWikiLinks(on: boolean | null) {
+  if (on === wiki) return
+  wiki = on
   processor = unified().use(remarkParse).use(markdownPlugins())
 }
 

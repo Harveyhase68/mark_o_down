@@ -29,6 +29,7 @@ const OPEN_FILTER = () => [
   { name: t('dialog.markdownAndHtml'), extensions: [...MD_EXT, ...HTML_EXT] },
   { name: t('dialog.markdown'), extensions: MD_EXT },
   { name: t('dialog.htmlImport'), extensions: HTML_EXT },
+  { name: t('dialog.workspace'), extensions: ['modw'] },
 ]
 
 /** Files the editor opens: Markdown directly, HTML via conversion. */
@@ -398,5 +399,16 @@ export async function findFiles(root: string, query: string, limit = 300): Promi
 export async function pickFolder(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
   const p = await open({ multiple: false, directory: true })
+  return typeof p === 'string' ? p : null
+}
+
+/** All Markdown files below `root` (relative, with `/`) – a workspace finds [[Link]] by name. */
+export async function markdownFiles(root: string, limit = 20000): Promise<string[]> {
+  return isTauri ? invoke<string[]>('markdown_files', { root, limit }) : []
+}
+
+export async function pickWorkspace(): Promise<string | null> {
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const p = await open({ multiple: false, directory: false, filters: [{ name: t('dialog.workspace'), extensions: ['modw'] }] })
   return typeof p === 'string' ? p : null
 }
