@@ -90,6 +90,16 @@ const nodes: Record<string, NodeSpec> = {
   table_header: cellSpec('header_cell', 'th'),
   table_cell: cellSpec('cell', 'td'),
 
+  // [[toc]] / [[toc depth=3]]: a generated table of contents (md/toc.ts, editor/toc.ts);
+  // only the marker (`raw`, as written) is saved
+  toc: {
+    group: 'block',
+    atom: true,
+    attrs: { raw: { default: '[[toc]]' }, ...srcAttrs },
+    parseDOM: [{ tag: 'nav[data-toc]', getAttrs: (dom) => ({ raw: (dom as HTMLElement).getAttribute('data-toc') || '[[toc]]' }) }],
+    toDOM: (node) => ['nav', { 'data-toc': node.attrs.raw, class: 'toc' }],
+  },
+
   horizontal_rule: {
     group: 'block',
     attrs: { rule: { default: null }, repeat: { default: null }, spaces: { default: false }, ...srcAttrs },

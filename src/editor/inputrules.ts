@@ -6,6 +6,7 @@ import { TextSelection } from 'prosemirror-state'
 import { schema } from '../md/schema'
 import { defListInputRule } from './deflist'
 import { wikiLinkInputRule } from './wikilinks'
+import { tocInputRule } from './toc'
 
 const N = schema.nodes
 const K = schema.marks
@@ -28,6 +29,7 @@ export function buildInputRules() {
   return inputRules({
     rules: [
       defListInputRule,
+      tocInputRule(), // before the wiki link: [[toc]] alone on a line
       wikiLinkInputRule,
       textblockTypeInputRule(/^(#{1,6})\s$/, N.heading, (m) => ({ level: m[1].length })),
       wrappingInputRule(/^\s*>\s$/, N.blockquote),

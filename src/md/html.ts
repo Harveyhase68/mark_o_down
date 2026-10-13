@@ -12,6 +12,8 @@ import { dialectKey, markdownPlugins } from './markdown'
 import { defListHastHandlers } from 'mdast-util-definition-list'
 import type { MathRenderer } from './mathRender'
 import { slugify } from './anchors'
+import type { Root as MRoot, RootContent } from 'mdast'
+import { headingsOf, nestHeadings, parseTocMarker, tocHtml, tocOn } from './toc'
 
 export interface RenderOptions {
   /** Colour fenced code blocks (classes as on GitHub, see PAGE_CSS). */
@@ -20,6 +22,27 @@ export interface RenderOptions {
   math?: MathRenderer
   /** ```mermaid diagrams, already drawn: source → SVG. */
   mermaid?: Map<string, string>
+  /** [[toc]]: the table of contents as HTML (a workspace's); default: the document's own headings */
+  toc?: (depth: number) => string
+}
+
+/** [[toc]] alone in a paragraph → the generated table of contents (raw HTML). */
+function remarkToc(opts: RenderOptions) {
+  return (tree: MRoot, file: { value: unknown }) => {
+    if (!tocOn()) return
+    const own = (depth: number) => tocHtml(nestHeadings(headingsOf(String(file.value), depth), (slug) => `#${slug}`), 'Table of contents')
+    const visit = (parent: { children: RootContent[] }) => {
+      parent.children.forEach((node, i) => {
+        if (node.type === 'paragraph' && node.children.length === 1) {
+          const only = node.children[0]
+          const marker = only.type === 'wikiLink' ? `[[${only.value}]]` : only.type === 'text' ? only.value : ''
+          const toc = parseTocMarker(marker)
+          if (toc) parent.children[i] = { type: 'html', value: (opts.toc ?? own)(toc.depth) }
+        } else if ('children' in node && node.type !== 'paragraph' && node.type !== 'heading') visit(node as { children: RootContent[] })
+      })
+    }
+    visit(tree)
+  }
 }
 
 const text = (el: Element) => el.children.map((c) => (c.type === 'text' ? c.value : '')).join('')
@@ -85,6 +108,7 @@ const processor = (opts: RenderOptions = {}) =>
   unified()
     .use(remarkParse)
     .use(markdownPlugins()) // front matter is metadata, not content
+    .use(remarkToc, opts)
     .use(remarkRehype, { allowDangerousHtml: true, handlers: defListHastHandlers as never })
     .use(rehypeHeadingIds)
     .use(rehypeCodeAndMath, opts)
@@ -95,7 +119,7 @@ const plain = new Map<string, ReturnType<typeof processor>>()
 export function renderHtml(markdown: string, opts?: RenderOptions): string {
   let p = plain.get(dialectKey())
   if (!p) plain.set(dialectKey(), (p = processor()))
-  return String((opts?.highlight || opts?.math || opts?.mermaid ? processor(opts) : p).processSync(markdown)).trim()
+  return String((opts?.highlight || opts?.math || opts?.mermaid || opts?.toc ? processor(opts) : p).processSync(markdown)).trim()
 }
 
 /** Title for a standalone page: first heading, else the file name. */
@@ -144,6 +168,11 @@ body { margin: 0; background: var(--bg); color: var(--fg); }
 .markdown-body img { max-width: 100%; vertical-align: middle; box-sizing: content-box; }
 .markdown-body hr { height: .25em; margin: 24px 0; padding: 0; border: 0; background: var(--border); }
 .markdown-body blockquote { padding: 0 1em; color: var(--muted); border-left: .25em solid var(--border); }
+.markdown-body nav.toc { margin: 0 0 16px; padding: 8px 16px; background: var(--soft); border-radius: 6px; }
+.markdown-body nav.toc ul { margin: 0; padding-left: 1.4em; list-style: none; }
+.markdown-body nav.toc > ul { padding-left: 0; }
+.markdown-body nav.toc li { margin: .15em 0; }
+.markdown-body nav.toc .toc-folder > span { font-weight: 600; }
 .markdown-body ul, .markdown-body ol { padding-left: 2em; } .markdown-body li + li { margin-top: .25em; }
 .markdown-body li.task-list-item { list-style: none; } .markdown-body li.task-list-item input { margin: 0 .3em .2em -1.4em; vertical-align: middle; }
 .markdown-body code, .markdown-body tt { padding: .2em .4em; font: 85%/1.45 ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace; background: var(--soft); border-radius: 6px; }

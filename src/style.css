@@ -2514,3 +2514,61 @@ body.ft-dragging * {
   color: var(--text);
   background: color-mix(in srgb, var(--paper) 60%, var(--bg));
 }
+
+/* ---------------------------------------------------------------- [[toc]] */
+
+.md-editor .toc-block {
+  margin: 0 0 16px;
+  padding: 8px 16px 10px;
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+  cursor: default;
+  user-select: none;
+}
+
+.md-editor .toc-block.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+}
+
+.toc-head {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.toc-body ul {
+  margin: 0;
+  padding-left: 1.3em;
+  list-style: none;
+}
+
+.toc-body > ul {
+  padding-left: 0;
+}
+
+.toc-body li {
+  margin: 1px 0;
+}
+
+.toc-body a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.toc-body a:hover {
+  text-decoration: underline;
+}
+
+.toc-body .toc-folder > span {
+  font-weight: 600;
+}
+
+.toc-empty {
+  color: var(--muted);
+  font-size: 13px;
+}

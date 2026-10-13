@@ -38,6 +38,8 @@ function blockNode(node: PMNode): M.RootContent | null {
       return { type: 'heading', depth: a.level, children: phrasing(node), data: mdo({ setext: a.setext || undefined, closeAtx: a.closeAtx || undefined }) } as M.Heading
     case 'blockquote':
       return { type: 'blockquote', children: flow(node) as M.BlockContent[] }
+    case 'toc':
+      return { type: 'html', value: a.raw } // the marker as written
     case 'horizontal_rule':
       return { type: 'thematicBreak', data: mdo({ rule: a.rule, repeat: a.repeat, spaces: a.rule ? a.spaces : undefined }) } as M.ThematicBreak
     case 'code_block':

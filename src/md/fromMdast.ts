@@ -9,6 +9,13 @@ import type * as M from 'mdast'
 import { HTML_TAG_MARKS, schema } from './schema'
 import { parseMarkdown, stringifyMarkdown } from './markdown'
 import { A_CLOSE, A_OPEN, BR, IMG, tagAttrs, tokenizeImageHtml, type HtmlToken } from './htmlTags'
+import { parseTocMarker, tocOn } from './toc'
+
+/** A paragraph's only child that is a [[toc]] marker (a wiki link, or text when wiki links are off) → the marker. */
+function tocRaw(node: M.PhrasingContent): string | null {
+  const raw = node.type === 'wikiLink' ? `[[${node.value}]]` : node.type === 'text' ? node.value.trim() : null
+  return raw && parseTocMarker(raw) ? raw : null
+}
 
 const S = schema.nodes
 const K = schema.marks
@@ -140,8 +147,12 @@ export class MdastToPM {
       case 'table':
         return this.table(node)
 
-      case 'paragraph':
+      case 'paragraph': {
+        // [[toc]] alone on its line: the table of contents
+        const toc = tocOn() && node.children.length === 1 ? tocRaw(node.children[0]) : null
+        if (toc) return S.toc.create({ raw: toc })
         return S.paragraph.create(null, this.inlines(node.children))
+      }
 
       case 'heading': {
         const src = this.slice(node)

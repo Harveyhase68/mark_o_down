@@ -25,6 +25,8 @@ import { findByName, isWorkspaceFile, readWorkspace, relativePath, rememberWorks
 import { openWorkspaceWindow, safeFileName, workspaceForm } from './workspaceUi'
 import { WIKI_INDEX_EVENT } from './editor/wikilinks'
 import { createDropCaret, dropPosition, fileLink, insertFileLink } from './editor/filedrop'
+import { configureToc, refreshTocs } from './editor/toc'
+import { headingsOf, nestHeadings, tocHtml, workspaceToc, type TocDocument, type TocItem } from './md/toc'
 import { store } from './editor/dom'
 import { createFileTree } from './filetree'
 
@@ -94,6 +96,7 @@ const hooks: EditorHooks = {
     scheduleUpdate()
     guard.onChange()
     findBar?.update()
+    refreshTocs() // the document's own headings may have changed
   },
 }
 
@@ -616,6 +619,7 @@ function activate(tab: Tab) {
   updateChrome()
   toolbar.update()
   void guard.checkDisk() // changed outside while it was in the background?
+  refreshTocs(0) // links in it are relative to this document
 }
 
 /** A new, empty tab right of the one in front. */
@@ -1138,13 +1142,67 @@ function showWorkspaces() {
   })
 }
 
+// ------------------------------------------------------------------ [[toc]]
+//
+// In a workspace: all its documents (but the one the table is in), folder by folder, with
+// their headings; open tabs count with what they show (also unsaved). Without one: the
+// document's own headings. Links are relative to the document, like the other links.
+
+/** the workspace's files as last read (cleared when the window is activated again) */
+const tocTexts = new Map<string, string>()
+
+async function tocDocuments(): Promise<TocDocument[]> {
+  const ws = workspace!
+  const docs = await Promise.all(
+    wikiIndex.map(async (rel): Promise<TocDocument | null> => {
+      const abs = host.joinPath(ws.root, rel)
+      if (samePath(abs, doc.path)) return null
+      const open = tabs.find((x) => samePath(x.doc.path, abs))
+      if (open) return { path: rel, markdown: exportMarkdown(tabState(open).doc, open.doc.meta) }
+      let text = tocTexts.get(abs)
+      if (text === undefined) {
+        text = await host.readFile(abs).then((f) => f.text, () => '')
+        tocTexts.set(abs, text)
+      }
+      return { path: rel, markdown: text }
+    }),
+  )
+  return docs.filter((d): d is TocDocument => d !== null)
+}
+
+/** The link from the document to a workspace file (and a heading in it). */
+function tocHref(rel: string, slug: string | null): string {
+  const abs = host.joinPath(workspace!.root, rel)
+  const path = doc.path ? relativePath(host.dirname(doc.path), abs) : abs
+  return host.encodePath(path.replace(/\\/g, '/')) + (slug ? `#${slug}` : '')
+}
+
+async function tocItems(depth: number): Promise<TocItem[]> {
+  if (!workspace) return nestHeadings(headingsOf(exportMarkdown(view.state.doc, doc.meta), depth), (slug) => `#${slug}`)
+  return workspaceToc(await tocDocuments(), depth, tocHref)
+}
+
+/** For the export: the workspace's table of contents (undefined: the document's own, html.ts does that). */
+async function exportToc(): Promise<((depth: number) => string) | undefined> {
+  if (!workspace) return undefined
+  const docs = await tocDocuments()
+  return (depth) => tocHtml(workspaceToc(docs, depth, tocHref), t('toc.title'))
+}
+
+configureToc({ items: tocItems, follow: (href) => void followLink(href), workspace: () => !!workspace })
+window.addEventListener('focus', () => {
+  tocTexts.clear() // files may have changed outside
+  refreshTocs()
+})
+window.addEventListener(WIKI_INDEX_EVENT, () => refreshTocs(0))
+
 // ------------------------------------------------------------------ HTML export, clipboard, print
 
 const htmlTitle = () => documentTitle(markdown(), withoutExt(docName()))
 
 async function exportHtml() {
   const md = markdown()
-  const page = renderHtmlPage(md, htmlTitle(), getLang(), await renderOptions(md))
+  const page = renderHtmlPage(md, htmlTitle(), getLang(), { ...(await renderOptions(md)), toc: await exportToc() })
   if (!host.isTauri) return download(page, `${withoutExt(docName())}.html`, 'text/html')
   const path = await host.pickHtmlSavePath(`${withoutExt(doc.path ?? docName())}.html`)
   if (!path) return
@@ -1160,7 +1218,7 @@ async function copyHtml() {
   try {
     // formulas as MathML (self-contained); code colours would need the page's stylesheet
     const md = markdown()
-    await host.copyHtml(renderHtml(md, { math: (await renderOptions(md)).math }))
+    await host.copyHtml(renderHtml(md, { math: (await renderOptions(md)).math, toc: await exportToc() }))
     flash(t('flash.htmlCopied'))
   } catch (e) {
     await host.showError(t('err.copy', { error: String(e) }))
@@ -1181,7 +1239,7 @@ async function exportPdf() {
   flash(t('flash.pdfCreating'))
   try {
     const md = markdown()
-    const page = new DOMParser().parseFromString(renderHtmlPage(md, htmlTitle(), getLang(), await renderOptions(md)), 'text/html')
+    const page = new DOMParser().parseFromString(renderHtmlPage(md, htmlTitle(), getLang(), { ...(await renderOptions(md)), toc: await exportToc() }), 'text/html')
     // relative image paths → URLs the (hidden) window can load
     for (const img of page.images) {
       const src = img.getAttribute('src')
@@ -1195,7 +1253,7 @@ async function exportPdf() {
 }
 
 function printDocument() {
-  return printMarkdown(markdown(), htmlTitle(), hooks.resolveImage)
+  return exportToc().then((toc) => printMarkdown(markdown(), htmlTitle(), hooks.resolveImage, toc))
 }
 
 // ------------------------------------------------------------------ browser fallback (dev without Tauri)
@@ -1394,4 +1452,4 @@ void (async () => {
 })()
 
 // Dev hook for testing in the browser console / pane.
-if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), tabs: () => tabs, workspace: () => workspace, wikiIndex: () => wikiIndex } })
+if (import.meta.env.DEV) Object.assign(window, { mod: { setDocument, markdown, view, guard, history, isDirty: () => isDirty(), tabs: () => tabs, workspace: () => workspace, wikiIndex: () => wikiIndex, exportToc } })

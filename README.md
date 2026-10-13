@@ -49,6 +49,9 @@ clean Markdown.
   shows its folder in the tree and finds `[[Link]]` by name anywhere in it, like Obsidian.
   *Open → Open workspace …* lists every workspace Mark O Down has seen, favourites on top,
   each list sortable by name or last opened. The last workspace is opened again at start.
+- **Table of contents** `[[toc]]` (or `[[toc depth=2]]`) on a line of its own: in a workspace it
+  lists all its documents folder by folder with their headings, otherwise the document's own
+  headings. Generated, never saved (only the marker is); in the HTML / PDF export and print too.
 - **Mermaid diagrams** like on GitHub: ` ```mermaid ` blocks are drawn (flowcharts, sequence,
   class, state, Gantt, pie … diagrams); click a diagram to edit its source below it. Also in the
   HTML export and print. Mermaid is loaded only when a document has a diagram.
@@ -235,6 +238,14 @@ checks that full re-serialization renders identical HTML.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+- **Table of contents** `[[toc]]` / `[[toc depth=N]]` (extended syntax or wiki links), alone on
+  a line: in a workspace all its documents (except the one it is in) like the folder tree – in
+  each folder README/index first, then the documents in natural order, then the subfolders –
+  each with its first `#` heading as title and its headings below it down to level N (default
+  3); without a workspace the document's own headings. Only the marker is saved; the table is
+  drawn in the editor (a click on an entry goes there, double-click changes the depth), kept up
+  to date while you type (open tabs count with their unsaved text) and rendered into the HTML
+  export, the PDF and the printout with links relative to the document.
 - **Tabs**: every opened document gets its own tab (a new, untouched empty tab is used for the
   next file instead). Each tab keeps its undo history, cursor and scroll position; opening a
   file that is open already brings its tab to the front, and so does following a link to it.

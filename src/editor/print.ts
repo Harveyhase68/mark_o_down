@@ -1,11 +1,11 @@
 // Print the rendered document (like the HTML export), not the editor UI.
 
-import { renderHtmlPage } from '../md/html'
+import { renderHtmlPage, type RenderOptions } from '../md/html'
 import { renderOptions } from '../md/renderOptions'
 import { getLang } from '../i18n'
 
 /** Renders into a hidden iframe, resolves local images, then opens the print dialog. */
-export async function printMarkdown(markdown: string, title: string, resolveImage: (src: string) => string): Promise<void> {
+export async function printMarkdown(markdown: string, title: string, resolveImage: (src: string) => string, toc?: RenderOptions['toc']): Promise<void> {
   const frame = document.createElement('iframe')
   frame.setAttribute('aria-hidden', 'true')
   // The document may contain raw HTML (<script>, onerror=…) from an untrusted .md.
@@ -14,7 +14,7 @@ export async function printMarkdown(markdown: string, title: string, resolveImag
   frame.setAttribute('sandbox', 'allow-same-origin allow-modals')
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
   document.body.append(frame)
-  const opts = await renderOptions(markdown)
+  const opts = { ...(await renderOptions(markdown)), toc }
 
   await new Promise<void>((resolve) => {
     frame.onload = () => resolve()

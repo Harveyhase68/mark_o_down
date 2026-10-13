@@ -6,6 +6,7 @@ import { defListEnter } from './deflist'
 import { mermaidBlockView, mermaidPlugin } from './mermaid'
 import { spellPlugin } from './spell'
 import { wikiLinkPlugin, wikiLinkView } from './wikilinks'
+import { tocView } from './toc'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { Fragment, Slice, type Node as PMNode, type ResolvedPos } from 'prosemirror-model'
 import { keymap } from 'prosemirror-keymap'
@@ -279,7 +280,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
   })
 
   // a new nodeViews object makes ProseMirror redraw all node views
-  const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView, mermaid_block: mermaidBlockView, wikilink: wikiLinkView })
+  const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView, mermaid_block: mermaidBlockView, wikilink: wikiLinkView, toc: tocView })
   const redraw = () => view.setProps({ nodeViews: nodeViews() })
   const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), mermaidPlugin(redraw), spellPlugin(), wikiLinkPlugin(hooks.docPath, (p) => hooks.findWiki?.(p) ?? null), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
   const stateFor = (doc: PMNode) => EditorState.create({ schema, doc, plugins })
