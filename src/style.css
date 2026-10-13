@@ -281,6 +281,24 @@ body.source-pending #scroller {
 
 /* ---------------------------------------------------------------- document */
 
+/* wiki links [[…]]; a target that does not exist: dashed red (like Obsidian) */
+.md-editor a.wikilink {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  cursor: pointer;
+}
+
+.md-editor a.wikilink.wikilink-missing {
+  color: #cf222e;
+  border-bottom: 1px dashed #cf222e;
+}
+
+.md-editor a.wikilink.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  border-radius: 2px;
+}
+
 /* the heading a link jumped to, marked for a moment */
 .md-editor .jump-target {
   animation: jump-target 1.6s ease-out;

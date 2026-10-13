@@ -1,5 +1,6 @@
 // "Extended syntax" (Pandoc / Typora / Obsidian), switchable – GitHub shows these as text:
-//   ^sup^   ~sub~   ==highlight==   and definition lists (`Term` / `: Definition`).
+//   ^sup^   ~sub~   ==highlight==   definition lists (`Term` / `: Definition`)
+//   [[wiki links]] (see wikilink.ts).
 // With it on, a single `~` is subscript, not strikethrough (`~~x~~` stays strikethrough).
 //
 // The inline tokenizer follows micromark-extension-gfm-strikethrough (MIT, © Titus
@@ -9,12 +10,13 @@
 import type { Code, Construct, Effects, Event, Extension, State, Token, TokenizeContext } from 'micromark-util-types'
 import type { Extension as FromMarkdownExtension, Handle as FromHandle } from 'mdast-util-from-markdown'
 import type { Handle, Options as ToMarkdownOptions } from 'mdast-util-to-markdown'
-import type { PhrasingContent } from 'mdast'
+import type { Literal, PhrasingContent } from 'mdast'
 import { classifyCharacter } from 'micromark-util-classify-character'
 import { resolveAll } from 'micromark-util-resolve-all'
 import { splice } from 'micromark-util-chunked'
 import { defList } from 'micromark-extension-definition-list'
 import { defListFromMarkdown, defListToMarkdown } from 'mdast-util-definition-list'
+import { wikiDisplay, wikiHref } from './wikilink'
 
 interface Delimiter {
   /** micromark token / mdast node name */
@@ -116,10 +118,69 @@ function delimiterConstruct(d: Delimiter): Construct {
   return { name: d.name, tokenize, resolveAll: resolveAllDelimiter }
 }
 
-/** micromark syntax: the three delimiters and definition lists. */
+const LEFT_BRACKET = 91
+const RIGHT_BRACKET = 93
+const BACKSLASH = 92
+
+/** `[[…]]` on one line, nothing in it but `[`/`]`-free text (`\x` escapes one character). */
+const wikiLinkConstruct: Construct = {
+  name: 'wikiLink',
+  add: 'before', // before the link label start, which would take the `[`
+  tokenize(effects, ok, nok) {
+    let size = 0
+    const open: State = (code) => {
+      if (code !== LEFT_BRACKET) return nok(code)
+      effects.consume(code)
+      return open2
+    }
+    const open2: State = (code) => {
+      if (code !== LEFT_BRACKET) return nok(code)
+      effects.consume(code)
+      effects.exit('wikiLinkMarker' as never)
+      effects.enter('wikiLinkValue' as never)
+      return inside
+    }
+    const inside: State = (code) => {
+      if (code === null || isLineEnding(code) || code === LEFT_BRACKET) return nok(code)
+      if (code === RIGHT_BRACKET) {
+        if (!size) return nok(code)
+        effects.exit('wikiLinkValue' as never)
+        effects.enter('wikiLinkMarker' as never)
+        effects.consume(code)
+        return close2
+      }
+      effects.consume(code)
+      size++
+      return code === BACKSLASH ? escaped : inside
+    }
+    const escaped: State = (code) => {
+      if (code === null || isLineEnding(code)) return nok(code)
+      effects.consume(code)
+      size++
+      return inside
+    }
+    const close2: State = (code) => {
+      if (code !== RIGHT_BRACKET) return nok(code)
+      effects.consume(code)
+      effects.exit('wikiLinkMarker' as never)
+      effects.exit('wikiLink' as never)
+      return ok
+    }
+    return (code) => {
+      effects.enter('wikiLink' as never)
+      effects.enter('wikiLinkMarker' as never)
+      return open(code)
+    }
+  },
+}
+
+const isLineEnding = (code: Code) => code !== null && code < -2
+
+/** micromark syntax: the three delimiters, wiki links and definition lists. */
 export function extendedSyntax(): Extension[] {
   const constructs = DELIMITERS.map(delimiterConstruct)
   return [
+    { text: { [LEFT_BRACKET]: wikiLinkConstruct } } as Extension,
     {
       text: Object.fromEntries(DELIMITERS.map((d, i) => [d.marker, constructs[i]])),
       insideSpan: { null: constructs },
@@ -140,6 +201,18 @@ export function extendedFromMarkdown(): FromMarkdownExtension[] {
     exit[d.name] = function (token) {
       this.exit(token)
     }
+  }
+  // [[…]]: an mdast `wikiLink`; rendered as <a href="Link.md#…">Text</a>
+  enter.wikiLink = function (token) {
+    this.enter({ type: 'wikiLink', value: '' } as never, token)
+  }
+  exit.wikiLinkValue = function (token) {
+    ;(this.stack[this.stack.length - 1] as unknown as WikiLink).value = this.sliceSerialize(token)
+  }
+  exit.wikiLink = function (token) {
+    const node = this.stack[this.stack.length - 1] as unknown as WikiLink
+    node.data = { hName: 'a', hProperties: { href: wikiHref(node.value), className: ['wikilink'] }, hChildren: [{ type: 'text', value: wikiDisplay(node.value) }] }
+    this.exit(token)
   }
   return [{ enter, exit }, defListFromMarkdown as FromMarkdownExtension]
 }
@@ -167,8 +240,13 @@ const defListDescription: Handle = (node, _parent, state, info) => {
   return value
 }
 
+/** [[…]] as it was written */
+const wikiLinkHandler: Handle = (node) => `[[${(node as unknown as WikiLink).value}]]`
+;(wikiLinkHandler as Handle & { peek: Handle }).peek = () => '['
+
 /** to-markdown handlers (always: the editor may hold such nodes) … */
 export const extendedHandlers: ToMarkdownOptions['handlers'] = {
+  wikiLink: wikiLinkHandler,
   ...Object.fromEntries(DELIMITERS.map((d) => [d.name, delimiterHandler(d)])),
   ...defListToMarkdown.handlers,
   defListDescription,
@@ -198,6 +276,12 @@ export function plainChars(text: string, extended: boolean, couldFormMath: (t: s
 
 export type { PhrasingContent }
 
+export interface WikiLink extends Literal {
+  type: 'wikiLink'
+  /** the inside of [[…]], as written */
+  value: string
+}
+
 declare module 'mdast' {
   interface Superscript extends Parent {
     type: 'superscript'
@@ -212,11 +296,13 @@ declare module 'mdast' {
     children: PhrasingContent[]
   }
   interface PhrasingContentMap {
+    wikiLink: WikiLink
     superscript: Superscript
     subscript: Subscript
     mark: Mark
   }
   interface RootContentMap {
+    wikiLink: WikiLink
     superscript: Superscript
     subscript: Subscript
     mark: Mark

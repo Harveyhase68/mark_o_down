@@ -24,8 +24,8 @@ clean Markdown.
 ## What's new in 0.6.0
 
 - 📊 **Mermaid diagrams** – ` ```mermaid ` blocks are drawn like on GitHub; click to edit the source.
-- ✍️ **Extended syntax** – `^superscript^`, `~subscript~`, `==highlight==` and definition lists
-  (Pandoc / Typora / Obsidian style), switchable under *Help* – off = exactly like GitHub.
+- ✍️ **Extended syntax** – `^superscript^`, `~subscript~`, `==highlight==`, definition lists and
+  `[[wiki links]]` (Pandoc / Typora / Obsidian style), switchable under *Help* – off = exactly like GitHub.
 - New in 0.5.0: sessions like Notepad++, math, syntax highlighting, footnotes – see the [changelog](#changelog).
 
 ## Features
@@ -39,6 +39,8 @@ clean Markdown.
   HTML export and print. Mermaid is loaded only when a document has a diagram.
 - **Extended syntax** (Pandoc / Typora / Obsidian, switchable under *Help*, on by default):
   `^superscript^`, `~subscript~`, `==highlight==` and definition lists (`Term` / `: Definition`).
+  **Wiki links** like Obsidian: `[[Link]]`, `[[Link|Text]]`, `[[Link#Heading]]`, `[[#Heading]]`,
+  `[[sub/Link]]`, `[[../sub/Link]]` (`.md` may be left out).
   GitHub shows these as plain text; switched off, Mark O Down reads Markdown exactly like GitHub
   (then `~text~` is strikethrough).
 - **Math** like on GitHub: `$E=mc^2$` inline, `$$ … $$` and ` ```math ` blocks, shown as formulas
@@ -213,6 +215,11 @@ checks that full re-serialization renders identical HTML.
 - **HTML check** under the source: tags that are not closed, closing tags without an opening one
   and comments without `-->` (which would hide the rest of the document) are listed with their
   line – click to jump there, *Close* / *Remove* fixes it (undoable with `Ctrl+Z`).
+- **Wiki links** (extended syntax): `[[Link]]`, `[[Link|Text]]`, `[[Link#Heading]]`,
+  `[[#Heading]]` (in this document), `[[sub/Link]]`, `[[../sub/Link]]` – resolved from the
+  document's folder, `.md` may be left out. Typing the closing `]]` creates the link, double-click
+  edits target and text, `Ctrl+click` follows it (also `Alt+←` back). Targets that don't exist are
+  underlined in dashed red. Saved exactly as written; in the HTML export they are normal links.
 
 **Fixed**
 

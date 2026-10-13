@@ -353,6 +353,9 @@ export class MdastToPM {
       case 'break':
         out.push(S.hard_break.create({ spaces: this.firstChar(node) !== '\\' }, null, marks))
         return
+      case 'wikiLink':
+        out.push(S.wikilink.create({ raw: node.value }, null, marks))
+        return
       case 'inlineMath':
         out.push(S.math_inline.create({ tex: node.value }, null, marks))
         return

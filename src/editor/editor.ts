@@ -5,6 +5,7 @@ import { mathBlockView, mathInlineView, mathPlugin } from './math'
 import { defListEnter } from './deflist'
 import { mermaidBlockView, mermaidPlugin } from './mermaid'
 import { spellPlugin } from './spell'
+import { wikiLinkPlugin, wikiLinkView } from './wikilinks'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { Fragment, Slice, type Node as PMNode, type ResolvedPos } from 'prosemirror-model'
 import { keymap } from 'prosemirror-keymap'
@@ -233,7 +234,7 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
           if (e.ctrlKey || e.metaKey) {
             const pos = view.posAtDOM(a, 0)
             const mark = view.state.doc.resolve(pos).marks().find((m) => m.type === K.link) ?? K.link.isInSet(view.state.doc.nodeAt(pos)?.marks ?? [])
-            const href = mark?.attrs.href || a.getAttribute('href')
+            const href = (a.dataset.wikilink !== undefined ? null : mark?.attrs.href) || a.getAttribute('href')
             if (href) hooks.followLink(href, pos)
             return true
           }
@@ -272,9 +273,9 @@ export function createEditor(mount: HTMLElement, hooks: EditorHooks): Editor {
   })
 
   // a new nodeViews object makes ProseMirror redraw all node views
-  const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView, mermaid_block: mermaidBlockView })
+  const nodeViews = () => ({ image: imageView(hooks), raw_inline: rawInlineView, math_inline: mathInlineView, math_block: mathBlockView, mermaid_block: mermaidBlockView, wikilink: wikiLinkView })
   const redraw = () => view.setProps({ nodeViews: nodeViews() })
-  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), mermaidPlugin(redraw), spellPlugin(), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
+  const plugins = [searchPlugin, footnotePlugin, highlightPlugin, mathPlugin(redraw), mermaidPlugin(redraw), spellPlugin(), wikiLinkPlugin(hooks.docPath), tableEditing(), buildInputRules(), keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), behaviour]
   const stateFor = (doc: PMNode) => EditorState.create({ schema, doc, plugins })
 
   const view = new EditorView(mount, {

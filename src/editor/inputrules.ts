@@ -5,6 +5,7 @@ import type { MarkType } from 'prosemirror-model'
 import { TextSelection } from 'prosemirror-state'
 import { schema } from '../md/schema'
 import { defListInputRule } from './deflist'
+import { wikiLinkInputRule } from './wikilinks'
 
 const N = schema.nodes
 const K = schema.marks
@@ -27,6 +28,7 @@ export function buildInputRules() {
   return inputRules({
     rules: [
       defListInputRule,
+      wikiLinkInputRule,
       textblockTypeInputRule(/^(#{1,6})\s$/, N.heading, (m) => ({ level: m[1].length })),
       wrappingInputRule(/^\s*>\s$/, N.blockquote),
       wrappingInputRule(/^\s*([-+*])\s$/, N.bullet_list, (m) => ({ bullet: m[1] })),

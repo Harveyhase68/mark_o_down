@@ -254,6 +254,9 @@ export function phrasing(parent: PMNode, inTable = false): M.PhrasingContent[] {
       case 'footnote_ref':
         c.push({ type: 'footnoteReference', identifier: footnoteId(a.label), label: a.label })
         break
+      case 'wikilink':
+        c.push({ type: 'wikiLink', value: a.raw } as M.PhrasingContent)
+        break
       case 'math_inline':
         c.push({ type: 'inlineMath', value: a.tex } as M.PhrasingContent)
         break

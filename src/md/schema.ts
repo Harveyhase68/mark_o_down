@@ -6,6 +6,7 @@
 // original serialization, original index, original gap); they are never shown.
 
 import { Schema, type NodeSpec, type MarkSpec, type DOMOutputSpec } from 'prosemirror-model'
+import { wikiDisplay, wikiHref } from './wikilink'
 
 /** Source-tracking attrs for nodes whose original Markdown we may re-emit verbatim. */
 const srcAttrs = {
@@ -263,6 +264,17 @@ const nodes: Record<string, NodeSpec> = {
     leafText: (node) => `[^${node.attrs.label}]`,
     parseDOM: [{ tag: 'sup[data-footnote]', getAttrs: (dom) => ({ label: (dom as HTMLElement).getAttribute('data-footnote') }) }],
     toDOM: (node) => ['sup', { 'data-footnote': node.attrs.label, class: 'fn-ref' }, ['span', { class: 'fn-label' }, node.attrs.label]],
+  },
+
+  // Obsidian wiki link [[Link|Text]] (extended syntax); `raw` = the inside as written
+  wikilink: {
+    group: 'inline',
+    inline: true,
+    atom: true,
+    attrs: { raw: { default: '' } },
+    leafText: (node) => wikiDisplay(node.attrs.raw),
+    parseDOM: [{ tag: 'a[data-wikilink]', getAttrs: (dom) => ({ raw: (dom as HTMLElement).getAttribute('data-wikilink') }) }],
+    toDOM: (node) => ['a', { 'data-wikilink': node.attrs.raw, class: 'wikilink', href: wikiHref(node.attrs.raw) }, wikiDisplay(node.attrs.raw)],
   },
 
   // Inline math `$ … $`

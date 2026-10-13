@@ -203,7 +203,7 @@ function updateChrome() {
   if (elevatedWarning) parts.unshift(t('status.elevated'))
   // Opened in a plain browser (e.g. the dev server URL): no real file access
   if (!host.isTauri) parts.unshift(t('status.browser'))
-  if (flashMessage) parts.unshift(`✓ ${flashMessage}`)
+  if (flashMessage) parts.unshift(flashMessage)
   statusEl.textContent = parts.join('   ·   ')
 
   if (sourceVisible && !applyingSource) showSource()
@@ -310,7 +310,7 @@ async function followLink(href: string, at?: number) {
     : host.joinPath(target.path.startsWith('/') && doc.root ? doc.root : host.dirname(doc.path!), target.path)
   if (samePath(path, doc.path)) return target.fragment ? jumpToAnchor(target.fragment, true, at) : undefined
   // a broken link: a note in the status bar (not a dialog – it is just a link)
-  if ((await host.fileHash(path).catch(() => null)) === null) return flash(t('link.notFound', { name: target.path }))
+  if ((await host.fileHash(path).catch(() => null)) === null) return flash(t('link.notFound', { name: target.path }), true)
   if (!host.isMarkdownFile(path)) {
     await host.revealFile(path).catch(() => {})
     return flash(t('link.revealed', { name: host.basename(path) }))
@@ -485,8 +485,9 @@ function restorePosition(cursor?: number, scroll?: number) {
 
 /** Short confirmation in the status bar. */
 let flashTimer = 0
-function flash(message: string) {
-  flashMessage = message
+/** A short message in the status bar; `warning`: something did not work. */
+function flash(message: string, warning = false) {
+  flashMessage = `${warning ? '⚠' : '✓'} ${message}`
   updateChrome()
   clearTimeout(flashTimer)
   flashTimer = window.setTimeout(() => {
