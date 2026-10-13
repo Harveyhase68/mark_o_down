@@ -9,6 +9,7 @@
 //! The checkers live on one worker thread (COM objects stay in their apartment); the
 //! commands send it jobs. The personal dictionary is the frontend's (a file per language).
 
+#[cfg(any(windows, target_os = "linux", test))] // the checkers per language (macOS: one system checker)
 use std::collections::HashMap;
 use std::sync::{Mutex, mpsc};
 
